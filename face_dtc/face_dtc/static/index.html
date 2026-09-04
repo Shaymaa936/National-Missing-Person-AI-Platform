@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Missing Persons AI Facial Identification Platform</title>
+  <meta name="description" content="AI-powered missing person facial identification engine. Scan camera feeds or upload images to match against the missing persons database.">
+  <link rel="stylesheet" href="/static/css/styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="navbar">
+    <div class="brand">
+      <div class="brand-icon"><i class="fa-solid fa-person-rays"></i></div>
+      <div>
+        <div class="brand-title">Missing Persons AI Finder <span class="brand-badge">EMERGENCY AI</span></div>
+      </div>
+    </div>
+    <div class="status-bar">
+      <div class="status-pill">
+        <span class="status-dot-red"></span>
+        <span>Active Missing: <strong id="statusActiveCount" style="color: #f87171;">0</strong></span>
+      </div>
+      <div class="status-pill">
+        <i class="fa-solid fa-circle-check" style="color: var(--accent-emerald);"></i>
+        <span>Found/Resolved: <strong id="statusFoundCount" style="color: var(--accent-emerald);">0</strong></span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Connection Status Banner -->
+  <div id="connectionBanner" style="background: rgba(239, 68, 68, 0.15); border-bottom: 1px solid rgba(239, 68, 68, 0.3); padding: 0.4rem 1rem; font-size: 0.8rem; text-align: center; color: #fca5a5; display: none;">
+    <i class="fa-solid fa-triangle-exclamation"></i> <span id="connectionText">Connecting to AI Server...</span>
+  </div>
+
+  <!-- Main Container -->
+  <main class="app-container">
+
+    <!-- Tab Navigation -->
+    <nav class="tabs-nav">
+      <button class="tab-btn active" data-tab="tab-search">
+        <i class="fa-solid fa-magnifying-glass-location"></i> AI Matcher & Scanner
+      </button>
+      <button class="tab-btn" data-tab="tab-register">
+        <i class="fa-solid fa-user-plus"></i> Register Missing Case
+      </button>
+      <button class="tab-btn" data-tab="tab-directory">
+        <i class="fa-solid fa-folder-open"></i> Missing Cases Gallery
+      </button>
+      <button class="tab-btn" data-tab="tab-integration">
+        <i class="fa-solid fa-code"></i> Embed Widget SDK
+      </button>
+    </nav>
+
+    <!-- Tab 1: AI Matcher & Scanner -->
+    <div id="tab-search" class="tab-pane active">
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">
+            <span><i class="fa-solid fa-camera-retro" style="color: var(--accent-red);"></i> Camera / Photo Scanner</span>
+            <span id="fpsCounter" class="match-badge low">0 FPS</span>
+          </div>
+          <p class="card-subtitle">Scan live camera or upload photo to compare against Missing Persons facial vector database</p>
+
+          <div class="video-wrapper">
+            <video id="scanVideo" autoplay playsinline muted></video>
+            <img id="searchPhotoPreview" src="" alt="Uploaded Photo" style="width: 100%; height: 100%; object-fit: contain; display: none; position: absolute; top:0; left:0; background: #000;">
+            <canvas id="scanCanvas"></canvas>
+            <div class="video-overlay-badge">
+              <span class="status-dot-red"></span>
+              <span id="scanStatusText">Camera Feed Active</span>
+            </div>
+          </div>
+
+          <div class="camera-controls">
+            <div style="display: flex; gap: 0.5rem; flex: 1;">
+              <select id="cameraSelect" class="select-input" style="max-width: 180px;">
+                <option value="">Default Camera</option>
+              </select>
+              <button id="btnToggleFacing" class="btn btn-secondary" title="Flip Camera">
+                <i class="fa-solid fa-rotate"></i> Flip
+              </button>
+            </div>
+
+            <button id="btnTriggerSearch" class="btn btn-primary">
+              <i class="fa-solid fa-magnifying-glass"></i> AI Search Match
+            </button>
+
+            <label class="btn btn-secondary" style="margin: 0; cursor: pointer;">
+              <i class="fa-solid fa-upload"></i> Upload Photo
+              <input type="file" id="fileUploadSearch" accept="image/*" style="display: none;">
+            </label>
+          </div>
+        </div>
+
+        <!-- Ranked Candidates Results Panel -->
+        <div class="card">
+          <div class="card-title">
+            <span><i class="fa-solid fa-layer-group" style="color: var(--accent-amber);"></i> Ranked Candidate Matches</span>
+            <span id="matchCountBadge" class="match-badge low">0 Candidates</span>
+          </div>
+          <p class="card-subtitle">AI facial similarity search results sorted by match confidence</p>
+
+          <div id="candidatesList" class="match-candidates-list">
+            <div class="match-card">
+              <div>
+                <div class="match-person-name" style="color: var(--text-muted);">Ready to Scan</div>
+                <div class="card-subtitle">Position face in camera or click <strong>Upload Photo</strong> / <strong>AI Search Match</strong> to identify matching missing persons.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 2: Register Missing Case -->
+    <div id="tab-register" class="tab-pane">
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title"><i class="fa-solid fa-camera" style="color: var(--accent-red);"></i> Missing Person Photo</div>
+          <p class="card-subtitle">Capture snapshot or upload clear frontal photo for 512d facial vector indexing</p>
+
+          <div class="video-wrapper">
+            <video id="regVideo" autoplay playsinline muted></video>
+            <canvas id="regCanvas" style="display: none;"></canvas>
+          </div>
+
+          <div class="camera-controls">
+            <button id="btnSnapRegister" class="btn btn-primary">
+              <i class="fa-solid fa-camera"></i> Take Snapshot
+            </button>
+            <label class="btn btn-secondary" style="margin: 0; cursor: pointer;">
+              <i class="fa-solid fa-upload"></i> Upload Photo
+              <input type="file" id="fileUploadRegister" accept="image/*" style="display: none;">
+            </label>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title"><i class="fa-solid fa-id-card" style="color: var(--accent-cyan);"></i> Missing Person Case Details</div>
+          <p class="card-subtitle">Fill in case information to alert search network</p>
+
+          <div style="margin-bottom: 1rem; text-align: center;">
+            <img id="regPreviewImg" src="" alt="Snapshot Preview" style="width: 140px; height: 140px; border-radius: var(--radius-md); object-fit: cover; border: 2px dashed var(--border-glow); display: none; margin: 0 auto 1rem;">
+          </div>
+
+          <form id="formRegisterCase" style="display: flex; flex-direction: column; gap: 0.9rem;">
+            <div>
+              <label style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.3rem; display: block;">Full Name *</label>
+              <input type="text" id="regName" class="text-input" placeholder="e.g. Johnathan Doe" required>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem;">
+              <div>
+                <label style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.3rem; display: block;">Age</label>
+                <input type="number" id="regAge" class="text-input" placeholder="e.g. 24">
+              </div>
+              <div>
+                <label style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.3rem; display: block;">Gender</label>
+                <select id="regGender" class="select-input">
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem;">
+              <div>
+                <label style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.3rem; display: block;">Missing Since Date</label>
+                <input type="date" id="regMissingSince" class="text-input">
+              </div>
+              <div>
+                <label style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.3rem; display: block;">Emergency Contact Phone *</label>
+                <input type="text" id="regContact" class="text-input" placeholder="+1 (555) 019-2831" required>
+              </div>
+            </div>
+
+            <div>
+              <label style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.3rem; display: block;">Last Known Location *</label>
+              <input type="text" id="regLocation" class="text-input" placeholder="e.g. Central Park, New York, NY" required>
+            </div>
+
+            <div>
+              <label style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.3rem; display: block;">Additional Case Notes</label>
+              <textarea id="regNotes" class="textarea-input" rows="2" placeholder="e.g. Wearing blue denim jacket, silver wristwatch..."></textarea>
+            </div>
+
+            <button type="submit" id="btnSubmitCase" class="btn btn-primary" style="margin-top: 0.4rem;" disabled>
+              <i class="fa-solid fa-bullhorn"></i> Publish Missing Case & Face Vector
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 3: Missing Persons Gallery -->
+    <div id="tab-directory" class="tab-pane">
+      <div class="card">
+        <div class="card-title">
+          <span><i class="fa-solid fa-images" style="color: var(--accent-red);"></i> Missing Persons Directory</span>
+          <div style="display: flex; gap: 0.6rem; align-items: center;">
+            <select id="filterStatus" class="select-input" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; width: auto;">
+              <option value="all">All Cases</option>
+              <option value="missing" selected>Active Missing</option>
+              <option value="found">Resolved / Found</option>
+            </select>
+            <input type="text" id="searchCasesInput" class="text-input" placeholder="Search name or location..." style="padding: 0.4rem 0.8rem; font-size: 0.8rem; width: 200px;">
+          </div>
+        </div>
+        <p class="card-subtitle">Browse all enrolled missing person records and sighting updates</p>
+
+        <div id="casesGrid" class="cases-grid">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 4: Embed Widget SDK -->
+    <div id="tab-integration" class="tab-pane">
+      <div class="card">
+        <div class="card-title"><i class="fa-solid fa-code" style="color: var(--accent-cyan);"></i> Embed Missing Persons Finder Widget</div>
+        <p class="card-subtitle">Emergency networks, news portals, and community sites can embed the AI Missing Persons scanner using this JS SDK.</p>
+
+        <h4 style="font-size: 1rem; margin: 1.5rem 0 0.5rem; color: var(--accent-red);">Include JavaScript SDK Tag</h4>
+        <div class="code-block">
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          <code>&lt;script src="http://localhost:8000/sdk/face_auth.js"&gt;&lt;/script&gt;</code>
+        </div>
+
+        <h4 style="font-size: 1rem; margin: 1.5rem 0 0.5rem; color: var(--accent-blue);">JavaScript Search & Sighting Example</h4>
+        <div class="code-block">
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          <code>// Initialize Finder SDK
+const finder = new MissingPersonsFinder({ serverUrl: 'http://localhost:8000' });
+
+// Perform AI Multi-Candidate Search on image frame
+const searchRes = await finder.search(base64ImageFrame);
+if (searchRes.results[0].has_matches) {
+    const topMatch = searchRes.results[0].top_match;
+    console.log(`Matched Missing Person: ${topMatch.name} (${topMatch.match_percentage}%)`);
+}
+
+// Log Sighting Report
+await finder.reportSighting(caseId, 'Main St Metro Station', 'Spotted near south exit', '+15550192');</code>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Sighting Report Modal -->
+  <div id="sightingModal" class="modal-backdrop">
+    <div class="modal-card">
+      <div class="card-title" style="margin-bottom: 1rem;">
+        <span><i class="fa-solid fa-bullhorn" style="color: var(--accent-red);"></i> Report Missing Person Sighting</span>
+        <button onclick="closeSightingModal()" style="background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.2rem;">&times;</button>
+      </div>
+
+      <form id="formSightingReport" style="display: flex; flex-direction: column; gap: 0.9rem;">
+        <input type="hidden" id="sightingCaseId">
+        <div style="font-weight: 600; font-size: 0.95rem; color: var(--accent-red);" id="sightingTargetName"></div>
+
+        <div>
+          <label style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.3rem; display: block;">Sighting Location *</label>
+          <input type="text" id="sightingLocation" class="text-input" placeholder="e.g. 5th Avenue Bus Stop, NYC" required>
+        </div>
+
+        <div>
+          <label style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.3rem; display: block;">Your Phone / Contact Info *</label>
+          <input type="text" id="sightingReporterContact" class="text-input" placeholder="+1 (555) 234-5678" required>
+        </div>
+
+        <div>
+          <label style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.3rem; display: block;">Sighting Details & Notes</label>
+          <textarea id="sightingNotes" class="textarea-input" rows="3" placeholder="Describe clothing, direction heading, condition..."></textarea>
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="margin-top: 0.5rem;">
+          <i class="fa-solid fa-paper-plane"></i> Submit Emergency Sighting Report
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <script src="/static/js/camera.js"></script>
+  <script src="/static/js/app.js"></script>
+  <script>
+    function copyCode(btn) {
+      const code = btn.nextElementSibling.innerText;
+      navigator.clipboard.writeText(code);
+      btn.innerText = 'Copied!';
+      setTimeout(() => btn.innerText = 'Copy', 2000);
+    }
+  </script>
+</body>
+</html>
