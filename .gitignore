@@ -1,0 +1,33 @@
+﻿# ===== Node modules =====
+node_modules/
+**/node_modules/
+
+# ===== Environment variables (NEVER commit these) =====
+.env
+.env.local
+.env.production
+**/.env
+**/.env.local
+**/.env.production
+
+# ===== Build output =====
+dist/
+build/
+**/dist/
+**/build/
+
+# ===== Python =====
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+
+# ===== Logs =====
+*.log
+npm-debug.log*
+
+# ===== OS / Editor files =====
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

@@ -1,0 +1,72 @@
+.about-section {
+  padding-top: 8px;
+}
+
+/* Mission: the one bold move on this page — an accent-bordered banner, not a card */
+.about-mission {
+  display: flex;
+  align-items: flex-start;
+  gap: 22px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--emergency);
+  border-radius: var(--radius-lg);
+  padding: 28px 30px;
+  margin-bottom: 22px;
+}
+.about-mission-icon {
+  font-size: 26px;
+  color: var(--emergency);
+  margin-top: 4px;
+  flex-shrink: 0;
+}
+.about-mission h3 {
+  font-size: 19px;
+  margin-bottom: 8px;
+}
+.about-mission p {
+  max-width: 62ch;
+}
+
+.about-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+}
+
+.about-card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  box-shadow: var(--shadow-sm);
+}
+.about-card-icon {
+  font-size: 20px;
+  color: var(--emergency);
+  margin-bottom: 14px;
+  display: block;
+}
+.about-card h4 {
+  font-size: 15.5px;
+  margin-bottom: 8px;
+}
+
+/* Privacy card reads as its own locked space, not a copy of the others */
+.about-card--secure {
+  background: var(--nav-header);
+  border-color: var(--nav-header);
+}
+.about-card--secure .about-card-icon { color: var(--alert-badge); }
+.about-card--secure h4 { color: #fff; }
+.about-card--secure p { color: #94A3B8; }
+
+body.rtl .about-mission { border-left: none; border-right: 4px solid var(--emergency); }
+
+@media (max-width: 960px) {
+  .about-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 620px) {
+  .about-mission { flex-direction: column; gap: 14px; }
+  .about-grid { grid-template-columns: 1fr; }
+}
