@@ -2,6 +2,8 @@
 
 Trace is a community assistance platform built to help reunite missing persons with their families across Pakistan.
 
+## Live Link: http://77.37.124.77/
+
 ## The problem, and who it's for
 
 When someone goes missing, information about their case gets scattered — a Facebook post here, a WhatsApp forward there, a report filed with local police that never reaches the people actually looking. Families searching for a missing relative and communities trying to help have no single place to report a case, browse open cases, or verify a tip, and there's no shared system connecting families, the community, and authorities around the same case.
@@ -55,6 +57,47 @@ Everything below is built and working in the app:
 - **Authentication & Data:** Auth and all application data (cases, users, tips, matches, and audit logs) are connected to the real backend and database.
 - **Secure Photo Access:** Photo access is controlled through the authenticated backend, with appropriate protection for missing-person images.
 - **Guide Screenshots:** The Guide page includes real screenshots of the application to provide a clear step-by-step walkthrough.
+
+  ## Screenshots
+  Page 1: Home
+  ![Home](screenshots/home.png)
+  ![Home](screenshots/homeurdu.png)
+  
+  Page 2: Missing Person
+   ![Missing Person](screenshots/missingperson.jpeg)
+
+  Page 3: Person Found
+     ![Person Found](screenshots/missingperson.jpeg)
+
+  Page 4: Guide
+    ![Guide](screenshots/guide.jpeg)
+
+  Page 5: Contact Us
+    ![Contact Us](screenshots/contact.jpeg)
+
+  Page 6: About Us
+   ![About Us](screenshots/about.jpeg)
+
+  Page 7: Sign Up
+   ![Sign Up](screenshots/signup.jpeg)
+
+  Page 8: Login
+   ![Login](screenshots/login.jpeg)
+
+  Page 9: Chat Bot
+   ![Chat Bot](screenshots/chatbot.png)
+
+  Page 10: Admin Dashboard
+   ![Admin Dashboard](screenshots/dashboard.jpeg)
+
+  Page 11: Community Tips
+   ![Community Tips](screenshots/tips.jpeg)
+
+  Page 12: AI Face Match
+   ![AI Face Match](screenshots/aiface.jpeg)
+
+  Page 13: User & Roles
+   ![User & Roles](screenshots/user&roles.jpeg)
 
 ## Structure
 
