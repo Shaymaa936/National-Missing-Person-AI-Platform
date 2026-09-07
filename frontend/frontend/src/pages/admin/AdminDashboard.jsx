@@ -254,31 +254,41 @@ const isStaff = [
 
 
   function logAudit(action, detail, kind = "info") {
-    if (user?.role !== "admin") return;
+  if (user?.role !== "admin") return;
 
-    setAuditLog((prev) => [
-      {
-        actor: actorName,
-        action,
-        detail,
-        ts: nowStr(),
-        kind,
-      },
-      ...prev,
-    ]);
+  const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-    const token = localStorage.getItem("token");
-
-    createAuditLogApi(token, {
+  setAuditLog((prev) => [
+    {
+      id: tempId,
+      actor: actorName,
       action,
       detail,
+      ts: nowStr(),
       kind,
-      actor: actorName,
-    }).catch((err) => {
-      devError("Failed to persist audit log:", err);
-    });
-  }
+    },
+    ...prev,
+  ]);
 
+  const token = localStorage.getItem("token");
+
+  createAuditLogApi(token, {
+    action,
+    detail,
+    kind,
+    actor: actorName,
+  }).then((saved) => {
+    setAuditLog((prev) =>
+      prev.map((log) =>
+        log.id === tempId
+          ? { ...log, id: saved._id || saved.id }
+          : log
+      )
+    );
+  }).catch((err) => {
+    devError("Failed to persist audit log:", err);
+  });
+}
 
   const loadTips = useCallback(async () => {
     setTipsLoading(true);
@@ -860,15 +870,26 @@ useEffect(() => {
   }
 
 
-  async function handleDeleteAudit(id) {
-    if (user?.role !== "admin") {
-      toast(
-        "Only admin can delete audit logs"
-      );
+ async function handleDeleteAudit(id) {
+  if (user?.role !== "admin") {
+    toast(
+      "Only admin can delete audit logs"
+    );
 
-      return;
-    }
+    return;
+  }
 
+  if (
+    typeof id === "string" &&
+    id.startsWith("temp-")
+  ) {
+    toast(
+      "Still saving this log — try again in a moment"
+    );
+    return;
+  }
+
+  
     const confirmed =
       window.confirm(
         "Are you sure you want to delete this audit log?"
