@@ -537,12 +537,26 @@ export function DataProvider({
       }
     }, []);
 
-  useEffect(() => {
+ const STAFF_ROLES = [
+  "admin",
+  "investigator",
+  "police",
+  "dpo",
+  "reporter",
+  "tipster",
+  "ngo",
+];
+
+useEffect(() => {
+  if (user && STAFF_ROLES.includes(user.role)) {
     loadAdminFoundReports();
-  }, [
-    loadAdminFoundReports,
-    user,
-  ]);
+  } else {
+    setAdminFounds([]);
+  }
+}, [
+  loadAdminFoundReports,
+  user,
+]);
 
   /* =====================================================
      ADD MISSING CASE
@@ -556,7 +570,7 @@ export function DataProvider({
       ) => {
         try {
           const token =
-            sessionStorage.getItem(
+            localStorage.getItem(
               "token"
             );
 
