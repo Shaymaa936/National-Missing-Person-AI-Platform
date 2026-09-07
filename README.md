@@ -105,4 +105,4 @@ cd "face dtc"
 venv\scripts\activate
 python app.py
 
-Then add a `.env` file in the root with your own Groq API key, MongoDB URI,JWT secret and FACE_ENGINE_URL for face detection. None of these credentials should be committed to this repository.
+Then add a `.env` file in the root with your own Groq API key, MongoDB URI, JWT secret, and FACE_ENGINE_URL for face detection. 
