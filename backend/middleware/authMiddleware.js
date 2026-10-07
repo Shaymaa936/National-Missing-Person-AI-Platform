@@ -1,33 +1,30 @@
 const jwt = require("jsonwebtoken");
+const User = require("../models/User");
 
-const protect = (req, res, next) => {
+const protect = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return res.status(401).json({
-        message: "Not authorized"
-      });
+      return res.status(401).json({ message: "Not authorized" });
     }
 
     const token = authHeader.split(" ")[1];
-
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-     console.log("BACKEND USER ROLE:", decoded.role);
-console.log("BACKEND USER:", decoded);
 
-req.user = decoded;
-    req.user = decoded;
+    const dbUser = await User.findById(decoded.id).select("role status");
+    if (!dbUser || dbUser.status === "suspended") {
+      return res.status(401).json({ message: "Account disabled or not found" });
+    }
 
+    req.user = { ...decoded, id: String(dbUser._id), role: dbUser.role };
     next();
   } catch (error) {
-    return res.status(401).json({
-      message: "Invalid or expired token"
-    });
+    return res.status(401).json({ message: "Invalid or expired token" });
   }
 };
 
-const protectImage = (req, res, next) => {
+const protectImage =  (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
     const headerToken =

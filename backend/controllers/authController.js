@@ -70,6 +70,11 @@ const login = async (req, res) => {
         message: "Invalid email or password"
       });
     }
+     if (user.status === "suspended") {
+      return res.status(403).json({
+        message: "Your account has been suspended. Please contact support."
+      });
+    }
 
     const token = jwt.sign(
       {
@@ -116,7 +121,7 @@ const updateUserRole = async (req, res) => {
     const user = await User.findByIdAndUpdate(
       req.params.id,
       { role },
-      { new: true }
+      { new: true, runValidators: true } 
     ).select("-password");
 
     if (!user) {
@@ -137,7 +142,7 @@ const updateUserStatus = async (req, res) => {
     const user = await User.findByIdAndUpdate(
       req.params.id,
       { status },
-      { new: true }
+      { new: true, runValidators: true }
     ).select("-password");
 
     if (!user) {

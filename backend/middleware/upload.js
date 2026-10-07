@@ -10,6 +10,16 @@ const foundDir = path.join(__dirname, "../uploads/found");
 fs.mkdirSync(missingDir, { recursive: true });
 fs.mkdirSync(firDir, { recursive: true });
 fs.mkdirSync(foundDir, { recursive: true });
+const ALLOWED_EXT = [".jpg", ".jpeg", ".jfif", ".png", ".webp", ".gif"];
+
+const imageFilter = (req, file, cb) => {
+  const ext = path.extname(file.originalname).toLowerCase();
+  if (file.mimetype.startsWith("image/") && ALLOWED_EXT.includes(ext)) {
+    cb(null, true);
+  } else {
+    cb(new Error("Only image files are allowed"));
+  }
+};
 
 
 // =========================
@@ -30,7 +40,7 @@ const storage = multer.diskStorage({
       Date.now() +
       "-" +
       Math.round(Math.random() * 1e9) +
-      path.extname(file.originalname);
+      path.extname(file.originalname).toLowerCase();
 
     cb(null, uniqueName);
   },
@@ -43,13 +53,7 @@ const upload = multer({
     fileSize: 5 * 1024 * 1024,
   },
 
-  fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith("image/")) {
-      cb(null, true);
-    } else {
-      cb(new Error("Only image files are allowed"));
-    }
-  },
+  fileFilter: imageFilter,
 });
 
 
@@ -67,7 +71,7 @@ const foundStorage = multer.diskStorage({
       Date.now() +
       "-" +
       Math.round(Math.random() * 1e9) +
-      path.extname(file.originalname);
+      path.extname(file.originalname).toLowerCase();
 
     cb(null, uniqueName);
   },
@@ -80,14 +84,11 @@ const uploadFound = multer({
     fileSize: 5 * 1024 * 1024,
   },
 
-  fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith("image/")) {
-      cb(null, true);
-    } else {
-      cb(new Error("Only image files are allowed"));
-    }
-  },
+  fileFilter: imageFilter,
 });
+
+  
+
 
 
 // =========================

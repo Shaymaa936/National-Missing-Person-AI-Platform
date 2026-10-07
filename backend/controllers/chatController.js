@@ -46,13 +46,24 @@ const chatWithAssistant = async (req, res) => {
     if (!Array.isArray(messages) || messages.length === 0) {
       return res.status(400).json({ error: "messages array required" });
     }
+        const safeMessages = messages
+      .slice(-10)
+      .filter((m) => m && (m.role === "user" || m.role === "assistant"))
+      .map((m) => ({
+        role: m.role,
+        content: String(m.content || "").slice(0, 1000),
+      }));
+
+    if (safeMessages.length === 0) {
+      return res.status(400).json({ error: "valid messages required" });
+    }
 
     // Language is determined from the user's actual message, not from the
     // website/navbar language. This keeps English -> English, Roman Urdu ->
     // Roman Urdu, and Urdu script -> Urdu script.
-    const userText = messages
-      .filter((m) => m?.role === "user")
-      .map((m) => String(m.content || ""))
+    const userText = safeMessages
+      .filter((m) => m.role === "user")
+      .map((m) => m.content)
       .join("\n");
 
     const hasUrduScript = /[\u0600-\u06FF]/.test(userText);
@@ -84,7 +95,7 @@ const chatWithAssistant = async (req, res) => {
         max_tokens: 500,
         messages: [
           { role: "system", content: SYSTEM_PROMPT + langNote },
-          ...messages,
+          ...safeMessages,
         ],
       }),
     });
