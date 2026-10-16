@@ -22,6 +22,9 @@ const { uploadFound } = require("../middleware/upload");
 
 const router = express.Router();
 
+const optionalAuth = require("../middleware/optionalAuth");
+const rateLimit = require("../middleware/rateLimit");
+
 
 // =====================================================
 // USER: Submit found-person report
@@ -29,6 +32,10 @@ const router = express.Router();
 
 router.post(
   "/",
+  // max 20 found-reports per 15 minutes per IP
+  rateLimit({ windowMs: 15 * 60 * 1000, max: 20 }),
+  // sets req.user when logged in, so the report shows in the user's dashboard
+  optionalAuth,
   uploadFound.single("photo"),
   createReport
 );

@@ -31,3 +31,12 @@ npm-debug.log*
 Thumbs.db
 .vscode/
 .idea/
+
+# ===== Uploaded photos (user data, never commit) =====
+backend/uploads/
+uploads/
+
+# ===== Python virtual env =====
+venv/
+**/venv/
+.venv/

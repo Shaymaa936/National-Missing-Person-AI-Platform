@@ -8,7 +8,42 @@ const FaceMatch = require("../models/FaceMatch");
 
 const {
   registerMissingFace,
+  deleteFaceEngineCase,
 } = require("../services/faceMatchService");
+
+const { resolveUploadPath } = require("../middleware/upload");
+const { generateCaseId } = require("../utils/caseId");
+
+// Roles allowed to see restricted case info (CNIC, family contact, FIR)
+const STAFF_ROLES = [
+  "admin",
+  "investigator",
+  "police",
+  "dpo",
+  "reporter",
+  "tipster",
+  "ngo",
+];
+
+// Restricted info is only for staff or the user who filed the report
+function canSeeRestricted(user, person) {
+  if (!user) return false;
+  if (STAFF_ROLES.includes(user.role)) return true;
+
+  const ownerId = person.reportedBy?._id || person.reportedBy;
+  return !!ownerId && String(ownerId) === String(user.id);
+}
+
+// Deletes an uploaded file from disk (ignores files that are already gone)
+function removeUploadedFile(publicPath) {
+  if (!publicPath || !publicPath.startsWith("/uploads/")) return;
+
+  fs.unlink(resolveUploadPath(publicPath), (err) => {
+    if (err && err.code !== "ENOENT") {
+      console.error("[deletePerson] could not remove file:", err.message);
+    }
+  });
+}
 
 
 /* =====================================================
@@ -25,9 +60,7 @@ const createPerson = async (req, res) => {
       ? `/uploads/fir/${req.files.firFile[0].filename}`
       : "";
 
-    const caseId =
-      "MP-2026-" +
-      Math.floor(1000 + Math.random() * 9000);
+    const caseId = generateCaseId("MP");
 
     const person = await MissingPerson.create({
       caseId,
@@ -133,11 +166,7 @@ const createPerson = async (req, res) => {
 
     if (imagePath) {
       try {
-        const absPath = path.join(
-          __dirname,
-          "..",
-          imagePath
-        );
+        const absPath = resolveUploadPath(imagePath);
 
         const imageBase64 =
           fs.readFileSync(
@@ -243,13 +272,16 @@ const getPersons = async (req, res) => {
         if (!isLoggedIn) {
           obj.image = null;
           obj.firImage = null;
+    }
 
-           delete obj.cnic;
-  delete obj.contactName;
-  delete obj.contactPhone;
-  delete obj.contactEmail;
-  delete obj.fir;
-        }
+    if (!canSeeRestricted(req.user, person)) {
+      delete obj.cnic;
+      delete obj.contactName;
+      delete obj.contactPhone;
+      delete obj.contactEmail;
+      delete obj.fir;
+      obj.firImage = null;
+    }
 
         return obj;
       });
@@ -333,12 +365,15 @@ const getPersonById = async (req, res) => {
     if (!req.user) {
       obj.image = null;
       obj.firImage = null;
+    }
 
+    if (!canSeeRestricted(req.user, person)) {
       delete obj.cnic;
-  delete obj.contactName;
-  delete obj.contactPhone;
-  delete obj.contactEmail;
-  delete obj.fir;
+      delete obj.contactName;
+      delete obj.contactPhone;
+      delete obj.contactEmail;
+      delete obj.fir;
+      obj.firImage = null;
     }
 
     res.status(200).json(
@@ -581,10 +616,17 @@ const deletePerson = async (req, res) => {
       });
     }
 
+    // Remove the photo + FIR scan from disk and the face from the AI engine,
+    // so deleted cases don't leave orphan files or keep appearing as matches.
+    removeUploadedFile(person.image);
+    removeUploadedFile(person.firImage);
+
+    if (person.faceEngineId) {
+      await deleteFaceEngineCase(person.faceEngineId);
+    }
 
     await FaceMatch.deleteMany({
-      missingPerson:
-        person._id,
+      missingPerson: person._id,
     });
 
 

@@ -2,9 +2,23 @@ const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 
-const missingDir = path.join(__dirname, "../uploads/missing");
-const firDir = path.join(__dirname, "../uploads/fir");
-const foundDir = path.join(__dirname, "../uploads/found");
+// Where photos are stored. On the VPS set UPLOAD_DIR in .env to a folder
+// OUTSIDE the project (e.g. /var/trace-uploads) so redeploying or re-cloning
+// the code never deletes uploaded photos. Falls back to backend/uploads.
+const UPLOAD_ROOT = process.env.UPLOAD_DIR
+  ? path.resolve(process.env.UPLOAD_DIR)
+  : path.join(__dirname, "../uploads");
+
+const missingDir = path.join(UPLOAD_ROOT, "missing");
+const firDir = path.join(UPLOAD_ROOT, "fir");
+const foundDir = path.join(UPLOAD_ROOT, "found");
+
+// Turns a stored public path like "/uploads/missing/abc.jpg" into the real
+// file path on disk, wherever UPLOAD_ROOT is.
+function resolveUploadPath(publicPath) {
+  const relative = String(publicPath || "").replace(/^\/?uploads\//, "");
+  return path.join(UPLOAD_ROOT, relative);
+}
 
 // Create folders if they don't exist
 fs.mkdirSync(missingDir, { recursive: true });
@@ -32,6 +46,9 @@ const storage = multer.diskStorage({
       cb(null, missingDir);
     } else if (file.fieldname === "firFile") {
       cb(null, firDir);
+    } else {
+      // Without this the request hangs forever on an unexpected field name
+      cb(new Error(`Unexpected upload field: ${file.fieldname}`));
     }
   },
 
@@ -98,4 +115,6 @@ const uploadFound = multer({
 module.exports = {
   upload,
   uploadFound,
+  UPLOAD_ROOT,
+  resolveUploadPath,
 };

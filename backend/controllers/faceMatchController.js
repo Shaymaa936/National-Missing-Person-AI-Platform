@@ -7,6 +7,7 @@ const axios = require("axios");
 const FaceMatch = require("../models/FaceMatch");
 const MissingPerson = require("../models/MissingPerson");
 const Report = require("../models/Report");
+const { resolveUploadPath } = require("../middleware/upload");
 const {
   registerMissingFace,
   searchFaceMatches,
@@ -33,7 +34,7 @@ async function getImageBase64(imagePath) {
     }
   }
   const cleanPath = imagePath.startsWith("/") ? imagePath : `/${imagePath}`;
-  const absPath = path.join(__dirname, "..", cleanPath);
+  const absPath = resolveUploadPath(cleanPath);
   if (fs.existsSync(absPath)) {
     return fs.readFileSync(absPath, { encoding: "base64" });
   }

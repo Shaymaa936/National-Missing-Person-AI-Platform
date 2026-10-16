@@ -16,7 +16,10 @@ const {
   staffViewOnly,
 } = require("../middleware/authMiddleware");
 
-router.post("/", submitTip);
+const rateLimit = require("../middleware/rateLimit");
+
+// max 20 tips per 15 minutes per IP
+router.post("/", rateLimit({ windowMs: 15 * 60 * 1000, max: 20 }), submitTip);
 
 router.get("/case/:caseId", getCaseTips);
 

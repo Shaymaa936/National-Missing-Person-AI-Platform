@@ -1,7 +1,20 @@
-import { createContext, useContext, useState, useCallback } from "react";
+import { createContext, useContext, useState, useCallback, useEffect } from "react";
 import { API_BASE } from "../api/apiClient";
 
 const AuthContext = createContext(null);
+
+// Reads the expiry time from the JWT. The token lasts 1 day; after that,
+// protected photos return 401 and look "missing" while the UI still shows
+// the user as logged in. We use this to log the user out on expiry instead.
+function getTokenExpiry(token) {
+  try {
+    const base64 = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+    const payload = JSON.parse(atob(base64));
+    return payload.exp ? payload.exp * 1000 : null;
+  } catch {
+    return null;
+  }
+}
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
@@ -9,6 +22,14 @@ export function AuthProvider({ children }) {
   const savedUser = localStorage.getItem("user");
   
   if (!token || !savedUser) {
+    return null;
+  }
+
+  // Expired login: clear it so the user signs in again
+  const expiry = getTokenExpiry(token);
+  if (expiry && expiry <= Date.now()) {
+    localStorage.removeItem("user");
+    localStorage.removeItem("token");
     return null;
   }
 
@@ -97,6 +118,17 @@ const signup = useCallback(
     localStorage.removeItem("user");
     setUser(null);
   }, []);
+
+  // Log out automatically the moment the token expires
+  useEffect(() => {
+    if (!user) return;
+
+    const expiry = getTokenExpiry(localStorage.getItem("token") || "");
+    if (!expiry) return;
+
+    const timer = setTimeout(logout, Math.max(0, expiry - Date.now()));
+    return () => clearTimeout(timer);
+  }, [user, logout]);
 
   const value = {
     user,

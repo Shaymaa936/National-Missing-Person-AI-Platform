@@ -6,6 +6,8 @@ const Report = require("../models/Report");
 const MissingPerson = require("../models/MissingPerson");
 const FaceMatch = require("../models/FaceMatch");
 const { searchFaceMatches } = require("../services/faceMatchService");
+const { resolveUploadPath } = require("../middleware/upload");
+const { generateCaseId } = require("../utils/caseId");
 
 
 // =====================================================
@@ -14,7 +16,7 @@ const { searchFaceMatches } = require("../services/faceMatchService");
 
 const createReport = async (req, res) => {
   try {
-    const caseId = "FP-2026-" + Math.floor(1000 + Math.random() * 9000);
+    const caseId = generateCaseId("FP");
 
     const reportData = {
       caseId,
@@ -104,7 +106,7 @@ const createReport = async (req, res) => {
 
     if (reportData.image) {
       try {
-        const absPath = path.join(__dirname, "..", reportData.image);
+        const absPath = resolveUploadPath(reportData.image);
         const imageBase64 = fs.readFileSync(absPath, { encoding: "base64" });
 
         const results = await searchFaceMatches(imageBase64, {

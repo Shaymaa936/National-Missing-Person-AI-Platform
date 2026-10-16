@@ -114,6 +114,24 @@ async function updateFaceEngineStatus(faceEngineId, status) {
 }
 
 /**
+ * Removes a case from the face engine when it's deleted in Mongo, so a
+ * deleted person never shows up as an AI match again.
+ *
+ * @param {string} faceEngineId
+ */
+async function deleteFaceEngineCase(faceEngineId) {
+  if (!faceEngineId) return false;
+
+  try {
+    const { data } = await client.delete(`/api/missing/cases/${faceEngineId}`);
+    return !!data?.success;
+  } catch (error) {
+    console.error("[faceMatchService] delete failed:", error.message);
+    return false;
+  }
+}
+
+/**
  * Quick health check — used so the admin dashboard can show whether the
  * AI engine is online before relying on it.
  */
@@ -130,5 +148,6 @@ module.exports = {
   registerMissingFace,
   searchFaceMatches,
   updateFaceEngineStatus,
+  deleteFaceEngineCase,
   checkEngineHealth
 };
