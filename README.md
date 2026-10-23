@@ -2,7 +2,7 @@
 
 Trace is a community assistance platform built to help reunite missing persons with their families across Pakistan.
 
-## Live Link: http://77.37.124.77/
+## Live Link: https://traceai.duckdns.org/
 
 ## The problem, and who it's for
 
