@@ -15,8 +15,10 @@ function authHeaders(token) {
 }
 
 export async function fetchFaceMatches(token, status) {
-  const url = new URL(`${API_BASE}/api/matches`);
-  if (status) url.searchParams.set("status", status);
+  // Plain string, not new URL(): in production API_BASE is "" (same domain),
+  // and new URL("/api/matches") throws "Invalid URL".
+  const query = status ? `?status=${encodeURIComponent(status)}` : "";
+  const url = `${API_BASE}/api/matches${query}`;
 
   const res = await fetch(url, { headers: authHeaders(token) });
   if (!res.ok) throw new Error("Failed to load face matches");

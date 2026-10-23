@@ -60,7 +60,11 @@ async function registerMissingFace({
     }
     return null;
   } catch (error) {
-    console.error("[faceMatchService] register failed:", error.message);
+    // Show the engine's real reason (e.g. "No face detected in the photo")
+    console.error(
+      `[faceMatchService] register failed for "${name}":`,
+      error.response?.data?.detail || error.message
+    );
     return null;
   }
 }
@@ -92,7 +96,10 @@ async function searchFaceMatches(imageBase64, { topK = 5, threshold = 0.3 } = {}
     }
     return [];
   } catch (error) {
-    console.error("[faceMatchService] search failed:", error.message);
+    console.error(
+      "[faceMatchService] search failed:",
+      error.response?.data?.detail || error.message
+    );
     return [];
   }
 }
