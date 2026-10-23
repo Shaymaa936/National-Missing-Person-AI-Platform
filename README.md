@@ -17,7 +17,8 @@ Everything below is built and working in the app:
 - **Email/password auth** one login for everyone; admins and investigators are just accounts with an `admin` role, so signing in through the normal login takes them to the admin dashboard instead of the regular one
 - **Report Missing** and **Report Found** flows, kept as the primary call-to-action from the Home page and footer
 - **Missing Persons** and **Person Found** listings Person Found is split into two categories (recent finds vs. long-lost cases)
-- **Privacy-by-design photo handling**: missing-person photos stay blurred until a visitor signs in; clicking a blurred case redirects to login instead of exposing it. Person Found photos are public
+- **Privacy-by-design case pages**: missing-person photos and basic details (name, age, last seen) are public so anyone can recognise them and send a tip without signing in; CNIC, family contacts and FIR details are visible only to police and admins. Person Found photos are public
+- **Four roles**: `user` (public), `ngo` (partner, view-only dashboard, no private data), `police` (reviews cases, tips and AI matches, sees private data), `admin` (everything, including users and audit log)
 - **Sign Up collects CNIC + phone number**, stored privately and never shown publicly, with a note in the form explaining that
 - **Bilingual EN/Urdu toggle** in the navbar switches every page instantly (nav, forms, guide, about, contact, auth, dashboard, footer) and flips the layout to RTL for Urdu
 - **Guide page** with a step-by-step, image-led walkthrough of how to report and search for a case

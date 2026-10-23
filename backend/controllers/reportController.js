@@ -7,7 +7,29 @@ const MissingPerson = require("../models/MissingPerson");
 const FaceMatch = require("../models/FaceMatch");
 const { searchFaceMatches } = require("../services/faceMatchService");
 const { resolveUploadPath } = require("../middleware/upload");
+const cloudStorage = require("../services/cloudStorage");
+
+// Fields an admin may edit on a found report (stops mass-assignment of
+// image / reportedBy / caseId through the update endpoint)
+const EDITABLE_REPORT_FIELDS = [
+  "name",
+  "contact",
+  "contactName",
+  "location",
+  "description",
+  "currentAge",
+  "ageWhenLost",
+  "gender",
+  "category",
+  "marks",
+  "status",
+];
 const { generateCaseId } = require("../utils/caseId");
+const {
+  isGenderConflict,
+  ENGINE_TOP_K,
+  MAX_MATCHES_PER_REPORT,
+} = require("../utils/matchFilters");
 
 
 // =====================================================
@@ -106,30 +128,42 @@ const createReport = async (req, res) => {
 
     if (reportData.image) {
       try {
-        const absPath = resolveUploadPath(reportData.image);
-        const imageBase64 = fs.readFileSync(absPath, { encoding: "base64" });
+        const imageBase64 = await cloudStorage.readBase64(reportData.image, resolveUploadPath);
 
         const results = await searchFaceMatches(imageBase64, {
-          topK: 5,
+          topK: ENGINE_TOP_K,
           threshold: 0.3
         });
 
         const candidates = results.flatMap((r) => r.candidates || []);
+        let kept = 0;
 
         for (const candidate of candidates) {
+          if (kept >= MAX_MATCHES_PER_REPORT) break;
+
           const missingPerson = await MissingPerson.findOne({
             faceEngineId: candidate.id
           });
 
           if (!missingPerson) continue;
 
-          await FaceMatch.create({
-            report: report._id,
-            missingPerson: missingPerson._id,
-            faceEngineId: candidate.id,
-            matchPercentage: candidate.match_percentage,
-            confidenceTier: candidate.confidence_tier
-          });
+          // Never suggest a male for a female (or the other way round)
+          if (isGenderConflict(report.gender, missingPerson.gender)) continue;
+          kept++;
+
+          // upsert (not create) so the same pair is never saved twice
+          await FaceMatch.findOneAndUpdate(
+            { report: report._id, missingPerson: missingPerson._id },
+            {
+              $set: {
+                faceEngineId: candidate.id,
+                matchPercentage: candidate.match_percentage,
+                confidenceTier: candidate.confidence_tier
+              },
+              $setOnInsert: { status: "Pending" }
+            },
+            { upsert: true }
+          );
         }
       } catch (engineError) {
         console.error("[createReport] face engine search skipped:", engineError.message);
@@ -261,13 +295,15 @@ const getMyReports = async (req, res) => {
 const getPublicReports = async (req, res) => {
   try {
 
+    // Public list: no finder phone/name and no reporter email
     const reports =
       await Report.find({
         status: "Verified",
       })
+      .select("-contact -contactName")
       .populate(
         "reportedBy",
-        "name email"
+        "name"
       )
       .sort({
         createdAt: -1,
@@ -307,10 +343,15 @@ const updateReport = async (req, res) => {
       ? { $or: [{ _id: req.params.id }, { caseId: req.params.id }] }
       : { caseId: req.params.id };
 
+    const updates = {};
+    for (const field of EDITABLE_REPORT_FIELDS) {
+      if (req.body[field] !== undefined) updates[field] = req.body[field];
+    }
+
     const report =
       await Report.findOneAndUpdate(
         query,
-        req.body,
+        updates,
         {
           new: true,
           runValidators: true,
@@ -423,6 +464,16 @@ const deleteReport = async (req, res) => {
 
     // Also delete any FaceMatches associated with this report
     await FaceMatch.deleteMany({ report: report._id });
+
+    // Remove the photo from disk so deleted reports don't leave files behind
+    if (report.image && report.image.startsWith("/uploads/")) {
+      cloudStorage.deleteFile(report.image).catch(() => {});
+      fs.unlink(resolveUploadPath(report.image), (err) => {
+        if (err && err.code !== "ENOENT") {
+          console.error("[deleteReport] could not remove file:", err.message);
+        }
+      });
+    }
 
     res.status(200).json({
       message: "Report deleted successfully",

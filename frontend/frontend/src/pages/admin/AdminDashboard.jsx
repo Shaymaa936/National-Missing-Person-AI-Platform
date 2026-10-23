@@ -41,6 +41,7 @@ import {
   fetchUsers,
   updateUserRoleApi,
   updateUserStatusApi,
+  updateUserCnicStatusApi,
   deleteUserApi,
   toUserShape,
 } from "../../api/usersApi";
@@ -54,6 +55,13 @@ import {
 } from "../../api/auditApi";
 
 import ContactMessages from "../../components/admin/ContactMessages";
+import CaseVerifyControls from "../../components/admin/CaseVerifyControls";
+import { API_BASE } from "../../api/apiClient";
+import { clearAuditLogsApi } from "../../api/auditApi";
+import "./AdminDashboard.css";
+
+// open (not solved) = everything except "found" / "closed"
+const isOpenCase = (c) => c.status !== "found" && c.status !== "closed";
 
 
 const NAV = [
@@ -71,7 +79,14 @@ const NAV = [
     id: "missing",
     label: "Missing Cases",
     icon: "fa-solid fa-user",
-    count: (d) => d.cases.length,
+    count: (d) => d.cases.filter(isOpenCase).length,
+  },
+
+  {
+    id: "solved",
+    label: "Solved Cases",
+    icon: "fa-solid fa-flag-checkered",
+    count: (d) => d.cases.filter((c) => c.status === "found").length,
   },
 
   {
@@ -130,8 +145,13 @@ const TITLES = {
     "Search, filter and update case status",
   ],
 
+  solved: [
+    "Solved Cases",
+    "Cases closed after the person was found",
+  ],
+
   found: [
-    "Found / Unidentified Reports",
+    "Found Reports",
     "Reports submitted by the community",
   ],
 
@@ -142,7 +162,7 @@ const TITLES = {
 
   facematch: [
     "AI Face-Match Review",
-    "Human-in-the-loop review of AI-suggested matches",
+    "Review AI-suggested matches",
   ],
 
   users: [
@@ -152,7 +172,7 @@ const TITLES = {
 
   contacts: [
     "Contact Messages",
-    "Messages submitted via the public Contact Us form",
+    "Messages from the Contact Us form",
   ],
 
   audit: [
@@ -174,10 +194,43 @@ export default function AdminDashboard() {
     deleteCase,
     approveFound,
     deleteFound,
+    reloadCases,
   } = useData();
 
 
   const [section, setSection] = useState("dashboard");
+
+  // sidebar: collapsed (desktop, remembered) / drawer open (mobile)
+  const [navCollapsed, setNavCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem("adminNavCollapsed") === "1";
+    } catch {
+      return false;
+    }
+  });
+  const [navOpen, setNavOpen] = useState(false);
+
+  function toggleNav() {
+    if (window.matchMedia("(max-width: 900px)").matches) {
+      setNavOpen((o) => !o);
+      return;
+    }
+    setNavCollapsed((c) => {
+      try {
+        localStorage.setItem("adminNavCollapsed", c ? "0" : "1");
+      } catch {
+        /* storage blocked — fine */
+      }
+      return !c;
+    });
+  }
+
+  function goSection(id) {
+    setSection(id);
+    setNavOpen(false);
+  }
+
+  const [solveBusy, setSolveBusy] = useState(null);
 
   const [tips, setTips] = useState([]);
   const [tipsLoading, setTipsLoading] = useState(true);
@@ -218,32 +271,18 @@ export default function AdminDashboard() {
     : "Admin User";
 
 
-  const ROLES = [
-    "admin",
-    "investigator",
-    "police",
-    "dpo",
-    "reporter",
-    "tipster",
-    "ngo",
-  ];
+  // 4 roles: admin (team), police (authorities), ngo (partners), user (public)
+  const ROLES = ["admin", "police", "ngo", "user"];
   const isAdmin = user?.role === "admin";
-const isInvestigator = user?.role === "investigator";
 const isPolice = user?.role === "police";
-const isDpo = user?.role === "dpo";
-const isReporter = user?.role === "reporter";
-const isTipster = user?.role === "tipster";
+// "investigator" was merged into police; kept as an alias so existing checks work
+const isInvestigator = isPolice;
 const isNgo = user?.role === "ngo";
 
-const isStaff = [
-  "admin",
-  "investigator",
-  "police",
-  "dpo",
-  "reporter",
-  "tipster",
-  "ngo",
-].includes(user?.role);
+// Admin + police can review (status, approvals, AI matches, tips); NGO views only
+const canReview = isAdmin || isPolice;
+
+const isStaff = ["admin", "police", "ngo"].includes(user?.role);
 
 
   function toast(msg) {
@@ -254,21 +293,25 @@ const isStaff = [
 
 
   function logAudit(action, detail, kind = "info") {
-  if (user?.role !== "admin") return;
+  // admin, police and NGO actions are all recorded; only admin reads the log
+  if (!isStaff) return;
 
   const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-  setAuditLog((prev) => [
-    {
-      id: tempId,
-      actor: actorName,
-      action,
-      detail,
-      ts: nowStr(),
-      kind,
-    },
-    ...prev,
-  ]);
+  if (isAdmin) {
+    setAuditLog((prev) => [
+      {
+        id: tempId,
+        actor: actorName,
+        role: user?.role,
+        action,
+        detail,
+        ts: nowStr(),
+        kind,
+      },
+      ...prev,
+    ]);
+  }
 
   const token = localStorage.getItem("token");
 
@@ -689,6 +732,29 @@ useEffect(() => {
   }
 
 
+  // Manual CNIC verification until NADRA is connected (admin only)
+  async function toggleCnicVerified(id) {
+    const u = users.find((x) => x.id === id);
+    if (!u) return;
+    const next = u.cnicStatus === "verified" ? "pending" : "verified";
+    try {
+      const token = localStorage.getItem("token");
+      await updateUserCnicStatusApi(token, id, next);
+      setUsers((prev) =>
+        prev.map((x) => (x.id === id ? { ...x, cnicStatus: next } : x))
+      );
+      logAudit(
+        next === "verified" ? "CNIC_VERIFIED" : "CNIC_UNVERIFIED",
+        `CNIC marked ${next} for ${u.name}`,
+        "info"
+      );
+      toast(next === "verified" ? "CNIC marked verified" : "CNIC marked pending");
+    } catch (err) {
+      devError("CNIC status error:", err);
+      toast(err.message || "Failed to update CNIC status");
+    }
+  }
+
   async function toggleUserStatus(id) {
     const u = users.find(
       (x) => x.id === id
@@ -927,6 +993,63 @@ useEffect(() => {
   }
 
 
+  async function handleClearAudit() {
+    if (!isAdmin) return;
+    if (!auditLog.length) {
+      toast("Audit log is already empty");
+      return;
+    }
+    const ok = window.confirm(
+      `Delete ALL ${auditLog.length} audit log entries? This cannot be undone.`
+    );
+    if (!ok) return;
+
+    try {
+      const data = await clearAuditLogsApi(localStorage.getItem("token"));
+      setAuditLog(data.entry ? [toAuditShape(data.entry)] : []);
+      toast(`Audit log cleared (${data.deletedCount || 0} entries)`);
+    } catch (error) {
+      devError("Clear audit log error:", error);
+      toast(error.message || "Failed to clear audit log");
+    }
+  }
+
+  // Solve / reopen a case (police + admin). Backend records solvedAt,
+  // the timeline entry and the audit log.
+  async function setCaseSolved(c, solved) {
+    if (!canReview) return;
+    if (
+      solved &&
+      !window.confirm(`Mark ${c.id} (${c.name}) as solved — person found?`)
+    ) {
+      return;
+    }
+    setSolveBusy(c.id);
+    try {
+      const res = await fetch(
+        `${API_BASE}/api/person/${encodeURIComponent(c._id || c.id)}/solve`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+          body: JSON.stringify({ solved }),
+        }
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || "Failed to update case");
+
+      await reloadCases();
+      if (isAdmin) loadAuditLogs();
+      toast(solved ? `${c.id} marked as solved` : `${c.id} reopened`);
+    } catch (error) {
+      toast(error.message);
+    } finally {
+      setSolveBusy(null);
+    }
+  }
+
   function viewRestricted(id) {
     if (user?.role !== "admin") {
       toast(
@@ -962,6 +1085,7 @@ useEffect(() => {
     () =>
       cases.filter(
         (c) =>
+          isOpenCase(c) &&
           (!mCity ||
             c.city === mCity) &&
           (!mStatus ||
@@ -984,6 +1108,24 @@ useEffect(() => {
       mStatus,
       mSearch,
     ]
+  );
+
+  const solvedRows = useMemo(
+    () =>
+      cases
+        .filter((c) => c.status === "found")
+        .sort(
+          (a, b) =>
+            new Date(b.solvedAt || b.updatedAt || 0) -
+            new Date(a.solvedAt || a.updatedAt || 0)
+        ),
+    [cases]
+  );
+
+  // dashboard "Recent cases": only open missing-person cases
+  const recentCases = useMemo(
+    () => cases.filter(isOpenCase).slice(0, 5),
+    [cases]
   );
 
 
@@ -1069,7 +1211,7 @@ useEffect(() => {
   ) {
     if (filterFn) filterFn();
 
-    setSection(targetSection);
+    goSection(targetSection);
   }
 
 
@@ -1088,19 +1230,30 @@ useEffect(() => {
 
 
   return (
-    <div className="admin-shell">
+    <div
+      className={`admin-shell${navCollapsed ? " is-collapsed" : ""}${
+        navOpen ? " nav-open" : ""
+      }`}
+    >
+
+      {/* mobile drawer backdrop */}
+      <div
+        className="admin-backdrop"
+        onClick={() => setNavOpen(false)}
+        aria-hidden="true"
+      />
 
       {/* SIDEBAR */}
-      <aside className="admin-sidebar">
+      <aside className="admin-sidebar" id="admin-sidebar">
 
         <div className="brand">
           <div className="logo">
             <img
               src={logo}
-              alt="Trace"
+              alt="TraceAI"
               className="mark"
             />
-            Trace
+            <span className="admin-brand-text">TraceAI</span>
           </div>
         </div>
 
@@ -1134,8 +1287,9 @@ useEffect(() => {
                     ? "active"
                     : ""
                 }`}
+                title={n.label}
                 onClick={() =>
-                  setSection(n.id)
+                  goSection(n.id)
                 }
               >
                 <span
@@ -1152,10 +1306,11 @@ useEffect(() => {
                     />
                   </span>
 
-                  {n.label}
+                  <span className="admin-nav-label">{n.label}</span>
                 </span>
 
-                {n.count && (
+                {/* badge only when there is something to count (no "0") */}
+                {n.count && n.count(dataForCounts) > 0 && (
                   <span className="count">
                     {n.count(
                       dataForCounts
@@ -1176,7 +1331,7 @@ useEffect(() => {
               {actorName.charAt(0)}
             </div>
 
-            <div>
+            <div className="admin-who-text">
               <p
                 style={{
                   color: "#fff",
@@ -1213,7 +1368,7 @@ useEffect(() => {
               className="fa-solid fa-right-from-bracket"
               aria-hidden="true"
             />{" "}
-            Sign Out
+            <span className="admin-nav-label">Sign Out</span>
           </button>
 
         </div>
@@ -1226,7 +1381,18 @@ useEffect(() => {
 
         <div className="admin-topbar">
 
-          <div>
+          <button
+            type="button"
+            className="admin-nav-toggle"
+            onClick={toggleNav}
+            aria-label="Toggle menu"
+            aria-controls="admin-sidebar"
+            aria-expanded={navOpen || !navCollapsed}
+          >
+            <i className="fa-solid fa-bars" aria-hidden="true" />
+          </button>
+
+          <div className="admin-topbar-title">
             <h2
               style={{
                 fontSize: 20,
@@ -1246,6 +1412,7 @@ useEffect(() => {
 
 
           <div
+            className="admin-topbar-email"
             style={{
               fontSize: 12.5,
               color:
@@ -1573,7 +1740,7 @@ useEffect(() => {
                     <button
                       className="btn btn-outline btn-sm"
                       onClick={() =>
-                        setSection(
+                        goSection(
                           "missing"
                         )
                       }
@@ -1603,8 +1770,7 @@ useEffect(() => {
 
                       <tbody>
 
-                        {cases
-                          .slice(0, 5)
+                        {recentCases
                           .map((c) => (
                             <tr
                               key={c.id}
@@ -1660,6 +1826,16 @@ useEffect(() => {
                             </tr>
                           ))}
 
+                        {recentCases.length === 0 && (
+                          <tr>
+                            <td colSpan={4}>
+                              <div className="empty-state">
+                                No open missing-person cases.
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+
                       </tbody>
 
                     </table>
@@ -1707,6 +1883,8 @@ useEffect(() => {
                                   : a.kind ===
                                     "success"
                                   ? "#059669"
+                                  : a.kind === "info"
+                                  ? "#2563EB"
                                   : "var(--emergency)",
                             }}
                           />
@@ -1743,21 +1921,18 @@ useEffect(() => {
 
                   <div>
                     <h3>
-                      AI Face-Match —
-                      top pending
-                      suggestions
+                      Pending AI Matches
                     </h3>
 
                     <p>
-                      Queued for human review
-                      before any action is taken
+                      Waiting for human review
                     </p>
                   </div>
 
                   <button
                     className="btn btn-outline btn-sm"
                     onClick={() =>
-                      setSection(
+                      goSection(
                         "facematch"
                       )
                     }
@@ -1783,6 +1958,7 @@ useEffect(() => {
                     .slice(0, 2)
                     .map((m) => (
                       <MatchCard
+                        canReview={canReview}
                         key={m.id}
                         m={m}
                         found={m._found}
@@ -1871,10 +2047,6 @@ useEffect(() => {
                   <option value="tip">
                     Tip Received
                   </option>
-
-                  <option value="found">
-                    Found
-                  </option>
                 </select>
 
 
@@ -1887,6 +2059,16 @@ useEffect(() => {
                     )
                   }
                 />
+
+                {canReview && (
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm admin-newcase-btn"
+                    onClick={() => navigate("/report-missing?from=admin")}
+                  >
+                    <i className="fa-solid fa-plus" aria-hidden="true" /> New case
+                  </button>
+                )}
 
               </div>
 
@@ -1904,6 +2086,7 @@ useEffect(() => {
                       <th>FIR</th>
                       <th>Tips</th>
                       <th>Status</th>
+                      <th>Verification</th>
                       <th></th>
                     </tr>
                   </thead>
@@ -2005,7 +2188,6 @@ useEffect(() => {
                             "active",
                            "investigating",
                              "tip",
-                              "found",
                             ].map((s) => (
                           <option key={s} value={s}>
                             {statusLabel(s)}
@@ -2016,6 +2198,15 @@ useEffect(() => {
                            <StatusBadge status={c.status} />
                            )}
 
+                          </td>
+
+                          <td>
+                            <CaseVerifyControls
+                              c={c}
+                              canReview={canReview}
+                              onDone={reloadCases}
+                              toast={toast}
+                            />
                           </td>
 
 
@@ -2040,6 +2231,20 @@ useEffect(() => {
                               </button>
                             )}
 
+
+                            {canReview && (
+                              <button
+                                className="icon-btn icon-btn--solve"
+                                title="Mark solved (person found)"
+                                disabled={solveBusy === c.id}
+                                onClick={() => setCaseSolved(c, true)}
+                              >
+                                <i
+                                  className="fa-solid fa-flag-checkered"
+                                  aria-hidden="true"
+                                />
+                              </button>
+                            )}
 
                             <button
                               className="icon-btn"
@@ -2071,7 +2276,7 @@ useEffect(() => {
                     {missingRows.length ===
                       0 && (
                       <tr>
-                        <td colSpan={8}>
+                        <td colSpan={9}>
                           <div className="empty-state">
                             No cases match these filters.
                           </div>
@@ -2091,11 +2296,109 @@ useEffect(() => {
                 <span>
                   Showing{" "}
                   {missingRows.length}{" "}
-                  of {cases.length} cases
+                  of {cases.filter(isOpenCase).length} open cases
                 </span>
 
               </div>
 
+            </div>
+          )}
+
+
+          {/* SOLVED CASES */}
+          {section === "solved" && (
+            <div className="panel">
+              <div className="panel-head">
+                <div>
+                  <h3>Solved Cases</h3>
+                  <p>
+                    Marked solved with the Solve button or by a confirmed AI match
+                  </p>
+                </div>
+              </div>
+
+              <div className="tbl-wrap">
+                <table className="data">
+                  <thead>
+                    <tr>
+                      <th>Case</th>
+                      <th>Age / Gender</th>
+                      <th>City</th>
+                      <th>Missing since</th>
+                      <th>Solved on</th>
+                      <th>Note</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {solvedRows.map((c) => (
+                      <tr key={c.id}>
+                        <td
+                          style={{ cursor: "pointer" }}
+                          onClick={() => setModalCaseId(c.id)}
+                        >
+                          <div className="cell-person">
+                            <img src={c.photo} alt={c.name} />
+                            <div>
+                              <div className="nm">{c.name}</div>
+                              <div className="sub mono">{c.id}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td>
+                          {c.age} · {c.gender}
+                        </td>
+                        <td>{c.city}</td>
+                        <td>{fmtAdmin(c.lastSeen)}</td>
+                        <td>
+                          <span className="solved-chip">
+                            <i className="fa-solid fa-circle-check" aria-hidden="true" />{" "}
+                            {c.solvedAt ? fmtAdmin(c.solvedAt) : "—"}
+                          </span>
+                        </td>
+                        <td style={{ fontSize: 12.5, color: "var(--text-supporting)" }}>
+                          {c.solvedNote || "—"}
+                        </td>
+                        <td className="row-actions">
+                          {canReview && (
+                            <button
+                              className="btn btn-outline btn-sm"
+                              disabled={solveBusy === c.id}
+                              onClick={() => setCaseSolved(c, false)}
+                              title="Reopen as missing"
+                            >
+                              <i className="fa-solid fa-rotate-left" aria-hidden="true" /> Reopen
+                            </button>
+                          )}
+                          <button
+                            className="icon-btn"
+                            title="View details"
+                            onClick={() => setModalCaseId(c.id)}
+                          >
+                            <i className="fa-solid fa-arrow-right" aria-hidden="true" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+
+                    {solvedRows.length === 0 && (
+                      <tr>
+                        <td colSpan={7}>
+                          <div className="empty-state">
+                            No solved cases yet. Use the{" "}
+                            <i className="fa-solid fa-flag-checkered" aria-hidden="true" /> Solve
+                            button in Missing Cases when a person is found.
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="pagination">
+                <span>{solvedRows.length} solved case(s)</span>
+              </div>
             </div>
           )}
 
@@ -2377,10 +2680,12 @@ useEffect(() => {
                           </p>
 
                           <div className="meta">
+                            {tp.verified ? "✔ Verified account · " : "Anonymous · "}
                             {tp.location} ·{" "}
                             {fmtAdmin(
                               tp.date
                             )}
+                            {tp.contact ? ` · 📞 ${tp.contact}` : ""}
                           </div>
 
                         </div>
@@ -2405,7 +2710,7 @@ useEffect(() => {
                         >
 
                           {tp.status ===
-                          "pending" ? (
+                          "pending" && canReview ? (
                             <button
                               className="btn btn-success btn-sm"
                               onClick={() =>
@@ -2556,6 +2861,8 @@ useEffect(() => {
                   )}
 
 
+                  {/* Scan-all is heavy, so admin only (police can scan single reports) */}
+                  {isAdmin && (
                   <button
                     className="btn btn-secondary btn-sm"
                     onClick={
@@ -2571,6 +2878,7 @@ useEffect(() => {
                     />{" "}
                     Run AI Scan on All
                   </button>
+                  )}
 
 
                   <button
@@ -2617,6 +2925,7 @@ useEffect(() => {
                   !fmLoading &&
                   matchRows.map((m) => (
                     <MatchCard
+                        canReview={canReview}
                       key={m.id}
                       m={m}
                       found={m._found}
@@ -2685,28 +2994,16 @@ useEffect(() => {
                     Administrator
                   </option>
 
-                  <option value="investigator">
-                    Investigator
-                  </option>
-
                   <option value="police">
-                    Police Liaison
-                  </option>
-
-                  <option value="dpo">
-                    Data Protection Officer
-                  </option>
-
-                  <option value="reporter">
-                    Reporter
-                  </option>
-
-                  <option value="tipster">
-                    Tipster
+                    Police / Investigator
                   </option>
 
                   <option value="ngo">
                     NGO Partner
+                  </option>
+
+                  <option value="user">
+                    Public User
                   </option>
                 </select>
 
@@ -2733,6 +3030,7 @@ useEffect(() => {
                       <th>User</th>
                       <th>Email</th>
                       <th>Role</th>
+                      <th>CNIC</th>
                       <th>Joined</th>
                       <th>Status</th>
                       <th></th>
@@ -2815,6 +3113,22 @@ useEffect(() => {
                             </span>
                           </td>
 
+
+                          <td>
+                            <button
+                              type="button"
+                              className={`badge badge-btn ${u.cnicStatus === "verified" ? "badge-found" : u.cnicStatus === "failed" ? "badge-rejected" : "badge-pending"}`}
+                              title={u.cnicStatus === "verified" ? "Click to mark pending" : "Click to mark verified"}
+                              onClick={() => toggleCnicVerified(u.id)}
+                              data-clickable="true"
+                            >
+                              {u.cnicStatus === "verified"
+                                ? "Verified"
+                                : u.cnicStatus === "failed"
+                                ? "Failed"
+                                : "Pending"}
+                            </button>
+                          </td>
 
                           <td>
                             {fmtAdmin(
@@ -3020,28 +3334,42 @@ useEffect(() => {
 
                 <div>
                   <h3>
-                    Full Audit Trail
+                    Audit Trail
                   </h3>
 
                   <p>
-                    Every access to case status,
-                    CNIC and biometric data is recorded
+                    Staff actions on cases, CNIC and AI
                   </p>
                 </div>
 
 
-                <button
-                  className="btn btn-outline btn-sm"
-                  onClick={
-                    handleExportAudit
-                  }
-                >
-                  <i
-                    className="fa-solid fa-file-export"
-                    aria-hidden="true"
-                  />{" "}
-                  Export CSV
-                </button>
+                <div className="audit-head-actions">
+                  <button
+                    className="btn btn-outline btn-sm"
+                    onClick={
+                      handleExportAudit
+                    }
+                  >
+                    <i
+                      className="fa-solid fa-file-export"
+                      aria-hidden="true"
+                    />{" "}
+                    Export CSV
+                  </button>
+
+                  {isAdmin && (
+                    <button
+                      className="btn btn-outline btn-sm audit-clear-btn"
+                      onClick={handleClearAudit}
+                    >
+                      <i
+                        className="fa-solid fa-trash"
+                        aria-hidden="true"
+                      />{" "}
+                      Delete all
+                    </button>
+                  )}
+                </div>
 
               </div>
 
@@ -3067,6 +3395,8 @@ useEffect(() => {
                               : a.kind ===
                                 "success"
                               ? "#059669"
+                              : a.kind === "info"
+                              ? "#2563EB"
                               : "var(--emergency)",
                         }}
                       />
@@ -3078,6 +3408,11 @@ useEffect(() => {
                           <b>
                             {a.actor}
                           </b>{" "}
+                          {a.role && (
+                            <span className={`audit-role audit-role--${a.role}`}>
+                              {roleLabel(a.role)}
+                            </span>
+                          )}{" "}
                           — {a.detail}
                         </div>
 

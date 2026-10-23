@@ -4,9 +4,15 @@ const axios = require("axios");
 // Set FACE_ENGINE_URL in .env when deploying (e.g. http://localhost:8000).
 const FACE_ENGINE_URL = process.env.FACE_ENGINE_URL || "http://localhost:8000";
 
+// If FACE_ENGINE_SECRET is set (same value in backend/.env and the Python
+// engine's environment), every call carries it so the engine can reject
+// anyone else.
 const client = axios.create({
   baseURL: FACE_ENGINE_URL,
-  timeout: 15000
+  timeout: 15000,
+  headers: process.env.FACE_ENGINE_SECRET
+    ? { "X-Engine-Key": process.env.FACE_ENGINE_SECRET }
+    : {}
 });
 
 /**
@@ -132,6 +138,21 @@ async function deleteFaceEngineCase(faceEngineId) {
 }
 
 /**
+ * IDs of every case the face engine currently knows. Returns null if the
+ * engine can't be reached (so callers don't wrongly re-enroll everything).
+ */
+async function listFaceEngineCaseIds() {
+  try {
+    const { data } = await client.get("/api/missing/cases", { params: { status: "all" } });
+    if (!data?.success || !Array.isArray(data.cases)) return null;
+    return new Set(data.cases.map((c) => c.id));
+  } catch (error) {
+    console.error("[faceMatchService] list cases failed:", error.message);
+    return null;
+  }
+}
+
+/**
  * Quick health check — used so the admin dashboard can show whether the
  * AI engine is online before relying on it.
  */
@@ -149,5 +170,6 @@ module.exports = {
   searchFaceMatches,
   updateFaceEngineStatus,
   deleteFaceEngineCase,
+  listFaceEngineCaseIds,
   checkEngineHealth
 };

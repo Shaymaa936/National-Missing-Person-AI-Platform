@@ -1,15 +1,8 @@
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
-const STAFF_ROLES = [
-  "admin",
-  "investigator",
-  "police",
-  "dpo",
-  "reporter",
-  "tipster",
-  "ngo",
-];
+// Dashboard access: admin, police, ngo
+const STAFF_ROLES = ["admin", "police", "ngo"];
 
 export default function RequireAdmin({ children }) {
   const { user } = useAuth();

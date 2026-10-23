@@ -14,16 +14,19 @@ const {
 const {
   protect,
   adminOnly,
+  reviewerOnly,
     staffViewOnly,
 } = require("../middleware/authMiddleware");
 const { upload } = require("../middleware/upload");
 
 const { uploadFound } = require("../middleware/upload");
+const stripImageMetadata = require("../middleware/stripImageMetadata");
 
 const router = express.Router();
 
 const optionalAuth = require("../middleware/optionalAuth");
 const rateLimit = require("../middleware/rateLimit");
+const verifyTurnstile = require("../middleware/verifyTurnstile");
 
 
 // =====================================================
@@ -34,9 +37,11 @@ router.post(
   "/",
   // max 20 found-reports per 15 minutes per IP
   rateLimit({ windowMs: 15 * 60 * 1000, max: 20 }),
+  verifyTurnstile, // captcha (only when TURNSTILE_SECRET_KEY is set)
   // sets req.user when logged in, so the report shows in the user's dashboard
   optionalAuth,
   uploadFound.single("photo"),
+  stripImageMetadata, // removes GPS/EXIF, rejects non-images
   createReport
 );
 
@@ -84,7 +89,7 @@ router.get(
 router.put(
   "/:id",
   protect,
-  adminOnly,
+  reviewerOnly,
   updateReport
 );
 
@@ -96,7 +101,7 @@ router.put(
 router.put(
   "/:id/approve",
   protect,
-  adminOnly,
+  reviewerOnly,
   approveReport
 );
 

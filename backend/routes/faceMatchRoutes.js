@@ -11,6 +11,7 @@ const {
 const {
   protect,
   adminOnly,
+  reviewerOnly,
   staffViewOnly
 } = require("../middleware/authMiddleware");
 
@@ -40,18 +41,19 @@ router.post(
   runAllFaceMatches
 );
 
+// ADMIN + POLICE: run AI for one report
 router.post(
   "/run/:reportId",
   protect,
-  adminOnly,
+  reviewerOnly,
   runFaceMatchForReport
 );
 
-// ADMIN ONLY: Update match
+// ADMIN + POLICE: confirm / reject a match
 router.put(
   "/:id",
   protect,
-  adminOnly,
+  reviewerOnly,
   updateMatch
 );
 

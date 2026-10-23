@@ -19,7 +19,7 @@ export default function MissingPersonsList() {
   const list = useMemo(() => {
     let filtered = cases.filter((c) => {
       if (q && !(c.name.toLowerCase().includes(q.toLowerCase()) || c.id.toLowerCase().includes(q.toLowerCase()))) return false;
-      if (gender && c.gender !== gender) return false;
+      if (gender && String(c.gender || "").toLowerCase() !== gender) return false;
       if (city && c.city !== city) return false;
       if (status && c.status !== status) return false;
       return true;

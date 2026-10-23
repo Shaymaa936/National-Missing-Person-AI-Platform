@@ -5,15 +5,18 @@ import { useAuth } from "../context/AuthContext";
 import { useLanguage } from "../i18n/LanguageContext";
 // import { useData } from "../context/DataContext";
 import CaseCard from "../components/CaseCard";
+import CaseVerificationStatus from "../components/CaseVerificationStatus";
 import FoundPersonCard from "../components/FoundPersonCard";
 import { API_BASE } from "../api/apiClient";
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
 
   const [myCases, setMyCases] = useState([]);
   const [myFounds, setMyFounds] = useState([]);
+
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     const loadMyReports = async () => {
@@ -52,7 +55,7 @@ export default function Dashboard() {
     if (user) {
       loadMyReports();
     }
-  }, [user]);
+  }, [user, reloadKey]);
 
   const hasAny = myCases.length > 0 || myFounds.length > 0;
   return (
@@ -73,7 +76,22 @@ export default function Dashboard() {
             <h3>{t("dashboard.myMissing")}</h3>
             {myCases.length > 0 ? (
               <div className="case-grid">
-                {myCases.map((c) => <CaseCard key={c._id} c={c} />)}
+                {myCases.map((c) => (
+                  <div key={c._id} style={{ minWidth: 0 }}>
+                    <CaseCard c={c} />
+                    {String(c.status || "").toLowerCase() === "missing" && (
+                      <Link
+                        to={`/my-cases/${encodeURIComponent(c.caseId || c._id)}/edit`}
+                        className="btn btn-outline btn-sm btn-block"
+                        style={{ marginTop: 10 }}
+                      >
+                        <i className="fa-solid fa-pen" aria-hidden="true" />{" "}
+                        {lang === "ur" ? "کیس میں ترمیم کریں" : "Edit case"}
+                      </Link>
+                    )}
+                    <CaseVerificationStatus c={c} onUpdated={() => setReloadKey((k) => k + 1)} />
+                  </div>
+                ))}
               </div>
             ) : (
               <div className="dash-empty" style={{ padding: 28 }}>{t("dashboard.noMissingYet")}</div>

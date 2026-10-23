@@ -24,7 +24,7 @@ const protect = async (req, res, next) => {
   }
 };
 
-const protectImage =  (req, res, next) => {
+const protectImage = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
     const headerToken =
@@ -44,7 +44,13 @@ const protectImage =  (req, res, next) => {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    req.user = decoded;
+    // Suspended / deleted accounts can no longer load protected photos
+    const dbUser = await User.findById(decoded.id).select("role status");
+    if (!dbUser || dbUser.status === "suspended") {
+      return res.status(401).json({ message: "Account disabled or not found" });
+    }
+
+    req.user = { ...decoded, id: String(dbUser._id), role: dbUser.role };
 
     next();
   } catch (error) {
@@ -63,18 +69,24 @@ const adminOnly = (req, res, next) => {
 
   next();
 };
-const staffViewOnly = (req, res, next) => {
-  const staffRoles = [
-    "admin",
-    "investigator",
-    "police",
-    "dpo",
-    "reporter",
-    "tipster",
-    "ngo",
-  ];
+// Dashboard access: admin, police, ngo
+const STAFF_ROLES = ["admin", "police", "ngo"];
 
-  if (!staffRoles.includes(req.user?.role)) {
+// Review actions (change case status, approve reports/tips, run & confirm
+// AI matches): admin + police
+const REVIEWER_ROLES = ["admin", "police"];
+
+const reviewerOnly = (req, res, next) => {
+  if (!REVIEWER_ROLES.includes(req.user?.role)) {
+    return res.status(403).json({
+      message: "Police or admin access required",
+    });
+  }
+  next();
+};
+
+const staffViewOnly = (req, res, next) => {
+  if (!STAFF_ROLES.includes(req.user?.role)) {
     return res.status(403).json({
       message: "Staff access required",
     });
@@ -83,9 +95,17 @@ const staffViewOnly = (req, res, next) => {
   next();
 };
 
+// Roles allowed to see restricted case info (CNIC, family contact, FIR).
+// NGO partners use the dashboard but don't see this private data.
+const RESTRICTED_DATA_ROLES = ["admin", "police"];
+
 module.exports = {
+  RESTRICTED_DATA_ROLES,
   protect,
   protectImage,
   adminOnly,
+  reviewerOnly,
+  STAFF_ROLES,
+  REVIEWER_ROLES,
     staffViewOnly,
 };

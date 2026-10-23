@@ -1,4 +1,4 @@
-﻿# ===== Node modules =====
+# ===== Node modules =====
 node_modules/
 **/node_modules/
 
@@ -40,3 +40,13 @@ uploads/
 venv/
 **/venv/
 .venv/
+
+# ===== Face engine data (face photos + biometric vectors, never commit) =====
+face_dtc/face_dtc/data/faces/
+face_dtc/face_dtc/data/sightings/
+face_dtc/face_dtc/data/missing_db.json
+face_dtc/face_dtc/data/faces_db.json
+face_dtc/face_dtc/static/data/
+
+# Vite temp files
+*.timestamp-*.mjs

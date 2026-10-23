@@ -1,0 +1,148 @@
+/* ---------- screen ---------- */
+.poster-page {
+  min-height: 100vh;
+  background: var(--bg-subtle);
+  padding: 20px 16px 48px;
+}
+
+.poster-toolbar {
+  max-width: 794px;
+  margin: 0 auto 16px;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+/* A4 proportions: 210 x 297 mm */
+.poster {
+  max-width: 794px;
+  margin: 0 auto;
+  background: #fff;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-md);
+  padding: 32px 36px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.poster__head {
+  background: var(--emergency);
+  color: #fff;
+  border-radius: var(--radius);
+  text-align: center;
+  padding: 10px 12px 12px;
+  line-height: 1;
+}
+.poster__title { font-size: 64px; font-weight: 900; letter-spacing: .08em; }
+.poster__title-ur { font-size: 36px; font-weight: 700; margin-top: 6px; }
+
+.poster__photo {
+  width: 62%;
+  margin: 0 auto;
+  aspect-ratio: 4 / 5;
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 4px solid var(--nav-header);
+  background: var(--bg-subtle);
+}
+.poster__photo img { width: 100%; height: 100%; object-fit: cover; }
+.poster__nophoto {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 20px;
+  color: var(--text-supporting);
+  font-weight: 600;
+}
+
+.poster__name {
+  text-align: center;
+  font-size: 40px;
+  color: var(--nav-header);
+}
+
+.poster__facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 6px 16px;
+  font-size: 17px;
+  border-top: 2px solid var(--border);
+  border-bottom: 2px solid var(--border);
+  padding: 12px 4px;
+}
+.poster__facts dt { font-weight: 700; color: var(--text-supporting); }
+.poster__facts dd { color: var(--text-primary); font-weight: 600; }
+
+.poster__desc { font-size: 15px; color: var(--text-primary); text-align: center; }
+
+.poster__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  background: var(--nav-header);
+  color: #fff;
+  border-radius: var(--radius);
+  padding: 16px 18px;
+}
+.poster__call { font-size: 20px; line-height: 1.4; }
+.poster__call b { color: var(--alert-badge); font-size: 28px; }
+.poster__call-ur { font-size: 20px; margin-top: 4px; }
+.poster__case { margin-top: 10px; font-size: 13px; color: #CBD5E1; }
+.poster__case span { font-family: ui-monospace, monospace; color: #fff; }
+
+.poster__qr {
+  background: #fff;
+  color: var(--nav-header);
+  border-radius: var(--radius-sm);
+  padding: 8px;
+  text-align: center;
+  font-size: 11.5px;
+  font-weight: 700;
+  width: 150px;
+  flex-shrink: 0;
+}
+.poster__qr img { width: 134px; height: 134px; margin: 0 auto 4px; }
+
+.poster__brand {
+  text-align: center;
+  font-size: 12px;
+  color: #94A3B8;
+}
+
+@media (max-width: 600px) {
+  .poster { padding: 18px; }
+  .poster__title { font-size: 44px; }
+  .poster__title-ur { font-size: 26px; }
+  .poster__name { font-size: 28px; }
+  .poster__photo { width: 85%; }
+  .poster__facts { font-size: 15px; }
+  .poster__foot { flex-direction: column; text-align: center; }
+}
+
+/* ---------- print: just the poster on one A4 page ---------- */
+@media print {
+  @page { size: A4; margin: 10mm; }
+  .poster-page { background: #fff; padding: 0; min-height: 0; }
+  .poster-toolbar { display: none; }
+  .poster { box-shadow: none; border: none; padding: 0; max-width: none; gap: 3mm; }
+  .poster__head, .poster__foot, .poster__photo { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  /* sized in mm so everything fits on ONE A4 page */
+  .poster__head { padding: 2mm 3mm 3mm; }
+  .poster__title { font-size: 40pt; }
+  .poster__title-ur { font-size: 22pt; margin-top: 1mm; }
+  .poster__photo { width: auto; height: 92mm; aspect-ratio: 4 / 5; }
+  .poster__name { font-size: 26pt; }
+  .poster__facts { font-size: 11.5pt; line-height: 1.35; padding: 2mm 1mm; gap: 0.5mm 5mm; }
+  .poster__desc { font-size: 11pt; }
+  .poster__foot { padding: 3mm 5mm; break-inside: avoid; }
+  .poster__call, .poster__call-ur { font-size: 13pt; line-height: 1.3; }
+  .poster__case { margin-top: 2mm; }
+  .poster__call b { font-size: 20pt; }
+  .poster__qr { width: 34mm; padding: 1.5mm; font-size: 8pt; }
+  .poster__qr img { width: 29mm; height: 29mm; margin-bottom: 1mm; }
+  .poster__brand { font-size: 8pt; }
+}

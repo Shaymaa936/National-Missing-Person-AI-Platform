@@ -1,12 +1,12 @@
-// Trace AI chatbot controller — Groq API ko securely call karta hai
+// TraceAI AI chatbot controller — Groq API ko securely call karta hai
 // (API key sirf backend/.env mein rehti hai, frontend mein kabhi nahi)
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const MODEL = process.env.GROQ_MODEL || "openai/gpt-oss-20b";
 
-// Trace (missing persons portal) ke baare mein context — bot isay follow karega
+// TraceAI (missing persons portal) ke baare mein context — bot isay follow karega
 const SYSTEM_PROMPT = `
-Aap "Trace" website ke liye ek helpful assistant hain. Trace ek Pakistan-based
+Aap "TraceAI" website ke liye ek helpful assistant hain. TraceAI ek Pakistan-based
 missing persons reporting aur reunification platform hai.
 
 Website ke sections:
@@ -19,7 +19,7 @@ Website ke sections:
 - Dashboard: User ke apne submit kiye huay reports
 - Login/Signup: Account banane/login karne ke liye
 - Contact Us: Team se rabta
-- About Us: Trace ke mission ke baare mein
+- About Us: TraceAI ke mission ke baare mein
 
 Aapka kaam:
 - Users ki madad karein site navigate karne mein
@@ -38,6 +38,32 @@ Aapka kaam:
   "Person Found" page pe search karne ka mashwara dein — aapke paas live
   database access nahi hai
 `;
+
+// Words that are clearly Roman Urdu. English look-alikes (is, us, me, main,
+// do, ya, report, please...) are left out on purpose — they made English
+// messages get Roman Urdu replies.
+const ROMAN_URDU = new Set(("aao ao assalam salam walaikum alaikum kaise kaisay kese kesy kesay hain hai hy hay " +
+  "mujhe mujhy mujh aap ap apka apki mera meri mere hamara hamari hum kya kia kyun kyon kiun kahan kidhar " +
+  "karna karni karo karein krna krni krdo kardo kar kr kro kijiye kijye dein dain batao btayo btao bataen " +
+  "chahiye chahye chaiye nahi nahin ni nai haan han acha achha theek thik sirf aur yeh ye woh wo iss uss " +
+  "se ko ki ka ke mein mai pe liye liay sakta sakti sakte gayi gya gaya gai hoga hogi tha thi thay " +
+  "bacha bachay bacho beta beti bhai behen abbu ammi lapata gumshuda madad shukriya jee ji koi kuch " +
+  "kab kaun kon kitna kitni wala wali raha rahi rahay hua hui huay").split(" "));
+const ENGLISH = new Set(("the is are am was were how what where when why who which can could would should " +
+  "i you my your me we our to a an and or of in on for with this that it do does did have has please " +
+  "help report missing person found child case want need know tell find search hello hi thanks thank").split(" "));
+
+function detectLanguage(text) {
+  if (/[\u0600-\u06FF]/.test(text)) return "urdu";
+  const words = String(text).toLowerCase().match(/[a-z']+/g) || [];
+  let ur = 0, en = 0;
+  for (const w of words) {
+    if (ROMAN_URDU.has(w)) ur++;
+    else if (ENGLISH.has(w)) en++;
+  }
+  // Roman Urdu only when it clearly outweighs English
+  return ur >= 2 && ur > en ? "roman" : ur >= 1 && en === 0 && words.length <= 3 ? "roman" : "english";
+}
 
 const chatWithAssistant = async (req, res) => {
   try {
@@ -58,27 +84,17 @@ const chatWithAssistant = async (req, res) => {
       return res.status(400).json({ error: "valid messages required" });
     }
 
-    // Language is determined from the user's actual message, not from the
-    // website/navbar language. This keeps English -> English, Roman Urdu ->
-    // Roman Urdu, and Urdu script -> Urdu script.
-    const userText = safeMessages
-      .filter((m) => m.role === "user")
-      .map((m) => m.content)
-      .join("\n");
-
-    const hasUrduScript = /[\u0600-\u06FF]/.test(userText);
-
-    // Common Roman Urdu words. This is only a hint; the model makes the final
-    // language decision from the actual conversation.
-    const romanUrduWords = /\b(ao|aao|assalam|walaikum|kaise|kaisay|kese|kesy|ho|hain|hai|mujhe|mujhy|aap|ap|mera|meri|mere|hamara|hum|mujh|kya|kia|kyun|kyon|kahan|khana|karna|karni|karo|karein|krna|krni|krdo|do|dein|batao|btayo|btao|chahiye|chahye|nahi|nahin|haan|han|acha|achha|acha|sirf|aur|ya|yeh|ye|woh|wo|iss|is|us|se|ko|ki|ka|ke|mein|main|me|pe|par|liye|liay|sakta|sakti|sakte|gayi|gya|gaya|gai|report|kar|kro|kijiye|please|plz)\b/i;
-
-    const languageHint = hasUrduScript
-      ? "The user is writing in Urdu script. Reply in Urdu script."
-      : romanUrduWords.test(userText)
-        ? "The user is writing Roman Urdu. Reply in Roman Urdu."
-        : "The user is writing English. Reply in English.";
-
-    const langNote = `\n\nLANGUAGE RULE: ${languageHint} Do not switch language unless the user switches language.`;
+    // Language comes from the user's LATEST message (not the whole chat and
+    // not the website language toggle).
+    const lastUserText =
+      [...safeMessages].reverse().find((m) => m.role === "user")?.content || "";
+    const lang = detectLanguage(lastUserText);
+    const languageHint =
+      lang === "urdu"
+        ? "The user's last message is in Urdu script. Reply ONLY in Urdu script."
+        : lang === "roman"
+        ? "The user's last message is in Roman Urdu. Reply ONLY in Roman Urdu (Urdu written in English letters)."
+        : "The user's last message is in English. Reply ONLY in natural English. Do not use Roman Urdu or Urdu.";
 
     if (!GROQ_API_KEY) {
       return res.status(500).json({ error: "GROQ_API_KEY is not configured" });
@@ -94,8 +110,10 @@ const chatWithAssistant = async (req, res) => {
         model: MODEL,
         max_tokens: 500,
         messages: [
-          { role: "system", content: SYSTEM_PROMPT + langNote },
+          { role: "system", content: SYSTEM_PROMPT },
           ...safeMessages,
+          // placed last so it wins over the Roman-Urdu system prompt
+          { role: "system", content: `LANGUAGE RULE: ${languageHint}` },
         ],
       }),
     });
@@ -116,4 +134,4 @@ const chatWithAssistant = async (req, res) => {
   }
 };
 
-module.exports = { chatWithAssistant };
+module.exports = { chatWithAssistant, detectLanguage };

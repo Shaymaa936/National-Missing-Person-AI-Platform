@@ -163,22 +163,20 @@ function normalizeMissingPerson(person, token) {
        IMAGE
     ========================= */
 
+    // Public photos: no login token in the URL. Private photos (family
+    // unticked "show publicly") need the token so police/admin can load them.
     photo: person.image
       ? person.image.startsWith("http")
         ? person.image
         : `${API_BASE}${person.image}${
-            token
+            person.photoPublic === false && token
               ? `?token=${token}`
               : ""
           }`
       : person.photo
       ? person.photo.startsWith("http")
         ? person.photo
-        : `${API_BASE}${person.photo}${
-            token
-              ? `?token=${token}`
-              : ""
-          }`
+        : `${API_BASE}${person.photo}`
       : null,
    
 
@@ -690,6 +688,10 @@ useEffect(() => {
              IDENTIFICATION
           ========================= */
 
+          // relationship to the missing person + child's B-form
+          formData.append("relationship", data.relationship || "");
+          formData.append("bForm", data.bForm || "");
+
           formData.append(
             "cnic",
             data.cnic ||
@@ -720,6 +722,12 @@ useEffect(() => {
               data.photo
             );
           }
+
+          // family's consent to show the photo publicly
+          formData.append(
+            "photoPublic",
+            data.photoPublic === false ? "false" : "true"
+          );
 
           /* =========================
              FIR FILE
@@ -947,12 +955,15 @@ useEffect(() => {
               {
                 method: "POST",
 
-                headers: token
-                  ? {
-                      Authorization:
-                        `Bearer ${token}`,
-                    }
-                  : {},
+                headers: {
+                  ...(token
+                    ? { Authorization: `Bearer ${token}` }
+                    : {}),
+                  // captcha (only when Turnstile keys are set)
+                  ...(data.captchaToken
+                    ? { "X-Turnstile-Token": data.captchaToken }
+                    : {}),
+                },
 
                 body: formData,
               }

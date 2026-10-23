@@ -17,7 +17,7 @@ export default function Navbar() {
     <header className="nav">
       <div className="nav-inner">
         <NavLink to="/" className="logo" onClick={closeMenu}>
-         <img src="/TraceAI logo.png" alt="Trace" className="mark" />
+         <img src="/TraceAI logo.png" alt="TraceAI" className="mark" />
           TraceAI
         </NavLink>
 

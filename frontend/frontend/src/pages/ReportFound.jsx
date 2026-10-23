@@ -4,6 +4,8 @@ import { Link } from "react-router-dom";
 import { useLanguage } from "../i18n/LanguageContext";
 import { useData } from "../context/DataContext";
 import { useAuth } from "../context/AuthContext";
+import Turnstile, { TURNSTILE_ENABLED } from "../components/Turnstile";
+import PhotoQualityHint from "../components/PhotoQualityHint";
 
 export default function ReportFound() {
   const { t } = useLanguage();
@@ -11,6 +13,9 @@ export default function ReportFound() {
   const { user } = useAuth();
 
   const [submitted, setSubmitted] = useState(null);
+  const [photoFile, setPhotoFile] = useState(null);
+  const [captcha, setCaptcha] = useState("");
+  const [captchaKey, setCaptchaKey] = useState(0);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -18,12 +23,19 @@ export default function ReportFound() {
     const fd = new FormData(e.target);
     const data = Object.fromEntries(fd.entries());
 
+    if (TURNSTILE_ENABLED && !captcha) {
+      alert("Please complete the security check.");
+      return;
+    }
+    data.captchaToken = captcha;
+
     try {
       const created = await addFoundReport(data, user);
 
       setSubmitted(created.id);
     } catch (error) {
       devError("Report submission failed:", error);
+      setCaptchaKey((k) => k + 1);
       alert(error.message || "Failed to submit report");
     }
   }
@@ -82,9 +94,9 @@ export default function ReportFound() {
 
             <div className="form-grid">
               <div className="field full">
-              <label>Person's Name *</label>
+              <label>Person's Name (optional)</label>
 
-  <input name="name" type="text" placeholder="Enter person's name" required/></div>
+  <input name="name" type="text" placeholder="Leave empty if unknown" /></div>
 
               <div className="field full">
                 <label>{t("reportFound.photo")}</label>
@@ -93,37 +105,41 @@ export default function ReportFound() {
                   name="photo"
                   type="file"
                   accept="image/*"
+                  onChange={(e) => setPhotoFile(e.target.files?.[0] || null)}
                 />
+                <PhotoQualityHint file={photoFile} />
               </div>
 
              <div className="field">
-                  <label>Current Age *</label>
+                  <label>Current Age (optional)</label>
 
                  <input
                  name="currentAge"
                   type="number"
                   min="0"
-                 placeholder="Enter current age"
-                 required
+                 placeholder="Estimated current age"
                    />
                   </div>
 
                            <div className="field">
-                         <label>Estimated Age (When Lost) *</label>
+                         <label>Estimated Age When Lost (optional)</label>
 
                          <input
                         name="ageWhenLost"
                         type="number"
                          min="0"
                        placeholder="Enter estimated age when lost"
-                      required
                             />
                      </div>
 
               <div className="field">
                 <label>{t("reportFound.gender")}</label>
 
-                <select name="gender">
+                <select name="gender" required defaultValue="">
+                  <option value="" disabled>
+                    {t("common.selectGender")}
+                  </option>
+
                   <option value="male">
                     {t("common.male")}
                   </option>
@@ -262,6 +278,10 @@ export default function ReportFound() {
               {t("reportFound.confirm")}
             </label>
           </div>
+
+
+          <Turnstile onToken={setCaptcha} resetKey={captchaKey} />
+
 
 
           <button

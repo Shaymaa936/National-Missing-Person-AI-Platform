@@ -1,7 +1,8 @@
 import os
 import base64
+import hmac
 import uvicorn
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
@@ -9,7 +10,12 @@ from pydantic import BaseModel
 from typing import Optional, List
 
 from db_manager import db_inst
-from face_engine import engine_inst, check_deepface_available
+from face_engine import engine_inst, check_deepface_available, STRICT_MODE, FACE_DETECTOR
+
+# Set FACE_ENGINE_SECRET (same value as in backend/.env) to lock the engine:
+# every request must then send the header  X-Engine-Key: <secret>,
+# and the demo UI / photo folders below are no longer served publicly.
+ENGINE_SECRET = os.environ.get("FACE_ENGINE_SECRET", "")
 
 app = FastAPI(
     title="Missing Persons AI Identification Platform API",
@@ -34,9 +40,20 @@ os.makedirs(STATIC_DIR, exist_ok=True)
 os.makedirs(SDK_DIR, exist_ok=True)
 os.makedirs(os.path.join(STATIC_DIR, "data"), exist_ok=True)
 
-app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
-app.mount("/data", StaticFiles(directory=DATA_DIR), name="data")
-app.mount("/sdk", StaticFiles(directory=SDK_DIR), name="sdk")
+@app.middleware("http")
+async def require_engine_key(request: Request, call_next):
+    if ENGINE_SECRET:
+        sent = request.headers.get("x-engine-key", "")
+        if not hmac.compare_digest(sent, ENGINE_SECRET):
+            return JSONResponse({"detail": "Unauthorized"}, status_code=401)
+    return await call_next(request)
+
+# Demo UI + raw data folders (face photos, missing_db.json) are only served
+# when the engine is NOT locked, i.e. local development.
+if not ENGINE_SECRET:
+    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+    app.mount("/data", StaticFiles(directory=DATA_DIR), name="data")
+    app.mount("/sdk", StaticFiles(directory=SDK_DIR), name="sdk")
 
 # Request Models
 class SearchPayload(BaseModel):
@@ -67,7 +84,7 @@ class StatusUpdatePayload(BaseModel):
 @app.get("/")
 async def get_index():
     index_file = os.path.join(STATIC_DIR, "index.html")
-    if os.path.exists(index_file):
+    if not ENGINE_SECRET and os.path.exists(index_file):
         return FileResponse(index_file)
     return JSONResponse({"message": "Missing Persons AI API online."})
 
@@ -80,6 +97,8 @@ async def health_check():
         "status": "online",
         "deepface_available": check_deepface_available(),
         "model_name": engine_inst.model_name,
+        "strict_mode": STRICT_MODE,
+        "detector": FACE_DETECTOR,
         "total_cases": len(all_cases),
         "active_missing": active_missing,
         "found_cases": found_cases
@@ -114,8 +133,11 @@ async def register_missing(payload: RegisterMissingPayload):
         img_np = engine_inst.decode_image(payload.image)
         faces = engine_inst.detect_faces(img_np)
 
+        if not faces and STRICT_MODE:
+            raise HTTPException(status_code=400, detail="No face detected in the photo. Please upload a clear, front-facing photo.")
+
         primary_bbox = faces[0] if faces else None
-        embedding = engine_inst.extract_embedding(img_np, primary_bbox)
+        embedding, model_used = engine_inst.extract_embedding_with_model(img_np, primary_bbox)
 
         if "," in payload.image:
             raw_base64 = payload.image.split(",")[1]
@@ -132,7 +154,8 @@ async def register_missing(payload: RegisterMissingPayload):
             contact_number=payload.contact_number,
             notes=payload.notes,
             img_bytes=img_bytes,
-            embedding=embedding
+            embedding=embedding,
+            model=model_used
         )
 
         return {
@@ -224,4 +247,10 @@ async def startup_event():
     engine_inst.warm_up()
 
 if __name__ == "__main__":
-    uvicorn.run("app:app", host="127.0.0.1", port=8000, reload=True)
+    # Keep FACE_HOST=127.0.0.1 on the server so only the Node backend can reach it
+    uvicorn.run(
+        "app:app",
+        host=os.environ.get("FACE_HOST", "127.0.0.1"),
+        port=int(os.environ.get("FACE_PORT", "8000")),
+        reload=os.environ.get("FACE_RELOAD", "0") == "1",
+    )

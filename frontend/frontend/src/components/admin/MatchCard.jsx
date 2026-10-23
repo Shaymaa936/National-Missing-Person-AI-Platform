@@ -1,7 +1,7 @@
 import { statusLabel } from "../../data/adminMockData";
 import StatusBadge from "../StatusBadge";
 
-export default function MatchCard({ m, found, matchedCase, onConfirm, onReject }) {
+export default function MatchCard({ m, found, matchedCase, onConfirm, onReject, canReview = true }) {
   if (!found || !matchedCase) return null;
   const color = m.similarity >= 70 ? "#059669" : m.similarity >= 50 ? "#D97706" : "#DC2626";
   return (
@@ -20,7 +20,7 @@ export default function MatchCard({ m, found, matchedCase, onConfirm, onReject }
         <div className="bar"><div className="fill" style={{ width: `${m.similarity}%`, background: color }} /></div>
       </div>
       <div className="match-actions">
-        {m.status === "pending" ? (
+        {m.status === "pending" && canReview ? (
           <>
             <button className="btn btn-success btn-sm" onClick={() => onConfirm(m.id)}>Confirm</button>
             <button className="btn btn-outline btn-sm" onClick={() => onReject(m.id)}>Reject</button>

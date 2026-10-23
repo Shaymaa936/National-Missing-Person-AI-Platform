@@ -8,10 +8,48 @@ const FaceMatch = require("../models/FaceMatch");
 const MissingPerson = require("../models/MissingPerson");
 const Report = require("../models/Report");
 const { resolveUploadPath } = require("../middleware/upload");
+const cloudStorage = require("../services/cloudStorage");
+const { notifyCaseFamily } = require("../services/notifyService");
+const { RESTRICTED_DATA_ROLES } = require("../middleware/authMiddleware");
+const {
+  isGenderConflict,
+  ENGINE_TOP_K,
+  MAX_MATCHES_PER_REPORT,
+} = require("../utils/matchFilters");
+
+// Removes old Pending suggestions that pair a male with a female.
+// (Confirmed / Rejected ones are the admin's decision and are kept.)
+async function removeGenderMismatches(report) {
+  const pending = await FaceMatch.find({ report: report._id, status: "Pending" })
+    .populate("missingPerson", "gender");
+  const bad = pending.filter(
+    (m) => m.missingPerson && isGenderConflict(report.gender, m.missingPerson.gender)
+  );
+  if (bad.length) {
+    await FaceMatch.deleteMany({ _id: { $in: bad.map((m) => m._id) } });
+  }
+  return bad.length;
+}
+
+// Hide CNIC / family contacts / FIR inside populated matches for staff roles
+// that are not allowed to see restricted data (e.g. reporter, tipster)
+function stripRestricted(match, role) {
+  const obj = match.toObject ? match.toObject() : match;
+  if (!RESTRICTED_DATA_ROLES.includes(role) && obj.missingPerson && typeof obj.missingPerson === "object") {
+    delete obj.missingPerson.cnic;
+    delete obj.missingPerson.contactName;
+    delete obj.missingPerson.contactPhone;
+    delete obj.missingPerson.contactEmail;
+    delete obj.missingPerson.fir;
+    obj.missingPerson.firImage = null;
+  }
+  return obj;
+}
 const {
   registerMissingFace,
   searchFaceMatches,
   updateFaceEngineStatus,
+  listFaceEngineCaseIds,
   checkEngineHealth
 } = require("../services/faceMatchService");
 
@@ -34,11 +72,12 @@ async function getImageBase64(imagePath) {
     }
   }
   const cleanPath = imagePath.startsWith("/") ? imagePath : `/${imagePath}`;
-  const absPath = resolveUploadPath(cleanPath);
-  if (fs.existsSync(absPath)) {
-    return fs.readFileSync(absPath, { encoding: "base64" });
+  // local file, or the Cloudinary copy when this machine doesn't have it
+  try {
+    return await cloudStorage.readBase64(cleanPath, resolveUploadPath);
+  } catch (err) {
+    return null;
   }
-  return null;
 }
 
 // Sync all missing persons from MongoDB to the Python face engine if not enrolled yet
@@ -48,8 +87,15 @@ async function syncMissingPersonsToFaceEngine() {
     status: { $ne: "Found" }
   });
 
+  // Cases enrolled on another machine (e.g. your laptop before moving to
+  // the VPS) have a faceEngineId this engine has never seen. Treat those as
+  // not enrolled so they get registered again here.
+  const engineIds = await listFaceEngineCaseIds();
+
   for (const mp of missingPersons) {
-    if (!mp.faceEngineId) {
+    const knownToEngine =
+      !!mp.faceEngineId && (engineIds === null || engineIds.has(mp.faceEngineId));
+    if (!knownToEngine) {
       try {
         const imageBase64 = await getImageBase64(mp.image);
         if (imageBase64) {
@@ -87,7 +133,7 @@ const getMatches = async (req, res) => {
       .populate("missingPerson")
       .sort({ createdAt: -1 });
 
-    res.status(200).json(matches);
+    res.status(200).json(matches.map((m) => stripRestricted(m, req.user.role)));
   } catch (error) {
     res.status(500).json({
       message: "Failed to get face matches",
@@ -125,13 +171,31 @@ const updateMatch = async (req, res) => {
     }
 
     if (status === "Confirmed" && match.missingPerson) {
+      // Mark as Found and record it on the case timeline
       await MissingPerson.findByIdAndUpdate(match.missingPerson._id, {
-        status: "Found"
+        status: "Found",
+        solvedAt: new Date(),
+        solvedBy: req.user?.id,
+        solvedNote: `AI match confirmed (${match.matchPercentage}%)`,
+        $push: {
+          timeline: {
+            title: "AI match confirmed",
+            desc: `Face match (${match.matchPercentage}%) confirmed by admin review.`,
+            date: new Date()
+          }
+        }
       });
 
       if (match.faceEngineId) {
         await updateFaceEngineStatus(match.faceEngineId, "Found");
       }
+
+      // Tell the family (doesn't wait / never breaks the request)
+      notifyCaseFamily(match.missingPerson._id, "Possible match confirmed", [
+        "A found-person report has been matched to this case and confirmed by our review team.",
+        "The police / TraceAI team will contact you with next steps. Please keep your phone on.",
+        "ایک ملنے والے شخص کی رپورٹ آپ کے کیس سے میچ ہوئی ہے۔ ٹیم جلد آپ سے رابطہ کرے گی۔",
+      ]).catch(() => {});
     }
 
     res.status(200).json(match);
@@ -177,29 +241,37 @@ const runFaceMatchForReport = async (req, res) => {
 
     // 3. Search missing candidates in Python face engine
     const results = await searchFaceMatches(imageBase64, {
-      topK: 5,
+      topK: ENGINE_TOP_K,
       threshold: 0.25
     });
+
+    await removeGenderMismatches(report);
 
     const candidates = results.flatMap((r) => r.candidates || []);
     const createdMatches = [];
 
     for (const candidate of candidates) {
+      if (createdMatches.length >= MAX_MATCHES_PER_REPORT) break;
+
       const missingPerson = await MissingPerson.findOne({
         faceEngineId: candidate.id
       });
 
       if (!missingPerson) continue;
 
+      // Never suggest a male for a female (or the other way round)
+      if (isGenderConflict(report.gender, missingPerson.gender)) continue;
+
+      // $setOnInsert: a re-scan no longer resets Confirmed/Rejected back to Pending
       const match = await FaceMatch.findOneAndUpdate(
         { report: report._id, missingPerson: missingPerson._id },
         {
-          report: report._id,
-          missingPerson: missingPerson._id,
-          faceEngineId: candidate.id,
-          matchPercentage: candidate.match_percentage,
-          confidenceTier: candidate.confidence_tier,
-          status: "Pending"
+          $set: {
+            faceEngineId: candidate.id,
+            matchPercentage: candidate.match_percentage,
+            confidenceTier: candidate.confidence_tier
+          },
+          $setOnInsert: { status: "Pending" }
         },
         { upsert: true, new: true }
       ).populate("report").populate("missingPerson");
@@ -245,22 +317,31 @@ const runAllFaceMatches = async (req, res) => {
         const imageBase64 = await getImageBase64(report.image);
         if (!imageBase64) continue;
 
-        const results = await searchFaceMatches(imageBase64, { topK: 5, threshold: 0.25 });
+        const results = await searchFaceMatches(imageBase64, { topK: ENGINE_TOP_K, threshold: 0.25 });
         const candidates = results.flatMap((r) => r.candidates || []);
 
+        await removeGenderMismatches(report);
+        let kept = 0;
+
         for (const candidate of candidates) {
+          if (kept >= MAX_MATCHES_PER_REPORT) break;
+
           const missingPerson = await MissingPerson.findOne({ faceEngineId: candidate.id });
           if (!missingPerson) continue;
+
+          // Never suggest a male for a female (or the other way round)
+          if (isGenderConflict(report.gender, missingPerson.gender)) continue;
+          kept++;
 
           await FaceMatch.findOneAndUpdate(
             { report: report._id, missingPerson: missingPerson._id },
             {
-              report: report._id,
-              missingPerson: missingPerson._id,
-              faceEngineId: candidate.id,
-              matchPercentage: candidate.match_percentage,
-              confidenceTier: candidate.confidence_tier,
-              status: "Pending"
+              $set: {
+                faceEngineId: candidate.id,
+                matchPercentage: candidate.match_percentage,
+                confidenceTier: candidate.confidence_tier
+              },
+              $setOnInsert: { status: "Pending" }
             },
             { upsert: true, new: true }
           );

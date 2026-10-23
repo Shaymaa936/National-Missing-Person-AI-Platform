@@ -46,7 +46,7 @@ export const cases = [
     ],
     timeline: [
       { date: "2026-08-02", title: "Last seen", desc: "Left home for tuition class, did not return." },
-      { date: "2026-08-03", title: "Missing report filed", desc: "Family submitted a report to Trace." },
+      { date: "2026-08-03", title: "Missing report filed", desc: "Family submitted a report to TraceAI." },
       { date: "2026-08-03", title: "FIR registered", desc: "FIR lodged at Gulberg Police Station." },
       { date: "2026-08-05", title: "Tip received", desc: "Community tip logged, forwarded to investigators." },
     ],
@@ -179,7 +179,7 @@ export const founds = [
     gender: "male",
     foundLocation: "Saddar, Rawalpindi",
     foundDate: "2026-08-10",
-    shelterLocation: "Trace Child Care Center, Rawalpindi",
+    shelterLocation: "TraceAI Child Care Center, Rawalpindi",
     status: "unmatched",
     longLost: false,
     reportedBy: "Imran Baig",

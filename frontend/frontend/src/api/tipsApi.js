@@ -1,9 +1,9 @@
 // Talks to the Node backend's /api/tips endpoints for the admin
 // "Community Tips" panel (list all tips, mark reviewed, delete).
 
-const API_BASE = import.meta.env.VITE_API_URL ;
+import { API_BASE } from "./apiClient";
 if (!API_BASE && import.meta.env.DEV) {
-  console.error("VITE_API_URL is not defined! Check your .env file.");
+  /* fallback address is handled in apiClient.js */
 }
 
 function authHeaders(token) {
@@ -53,6 +53,8 @@ export function toTipShape(t) {
     date: t.createdAt,
     location: t.location || "—",
     msg: t.message,
+    contact: t.contact || "",
+    verified: !!t.verified,
     status: (t.status || "pending").toLowerCase(),
   };
 }

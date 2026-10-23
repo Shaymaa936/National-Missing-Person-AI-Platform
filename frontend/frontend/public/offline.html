@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0F172A">
+  <title>Offline · TraceAI</title>
+  <style>
+    body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+           font-family: Inter, system-ui, sans-serif; background: #F8FAFC; color: #1E293B; padding: 16px; }
+    .box { max-width: 420px; background: #fff; border: 1px solid #E2E8F0; border-top: 4px solid #EA580C;
+           border-radius: 14px; padding: 28px; text-align: center; box-shadow: 0 4px 16px rgba(15,23,42,.10); }
+    img { width: 72px; height: 72px; border-radius: 16px; margin-bottom: 12px; }
+    h1 { font-size: 22px; margin: 0 0 8px; }
+    p { color: #334155; line-height: 1.6; margin: 6px 0; }
+    .ur { direction: rtl; }
+    b { color: #EA580C; }
+    button { margin-top: 16px; background: #EA580C; color: #fff; border: 0; border-radius: 10px;
+             padding: 12px 20px; font-weight: 600; font-size: 15px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <img src="/icons/icon-192.png" alt="TraceAI">
+    <h1>You're offline</h1>
+    <p>Check your internet connection and try again.</p>
+    <p class="ur">آپ کا انٹرنیٹ بند ہے۔ کنکشن چیک کر کے دوبارہ کوشش کریں۔</p>
+    <p>In an emergency call <b>15</b>.</p>
+    <button onclick="location.reload()">Try again</button>
+  </div>
+</body>
+</html>

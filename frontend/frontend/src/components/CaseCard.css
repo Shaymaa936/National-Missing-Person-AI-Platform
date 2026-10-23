@@ -1,0 +1,26 @@
+/* "Pending verification" chip on case cards (family dashboard / staff) */
+.card-verify {
+  display: inline-block;
+  width: fit-content;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 2px 9px;
+  margin-bottom: 6px;
+  border: 1px solid;
+}
+.card-verify--pending { color: #92400E; background: #FFFBEB; border-color: #F59E0B; }
+.card-verify--rejected { color: #991B1B; background: #FEF2F2; border-color: #EF4444; }
+
+/* Found-person variant of the case card */
+.found-card-v2 .found-card-v2__nophoto {
+  width: 100%; height: 100%;
+  display: grid; place-items: center;
+  font-size: 48px; color: #94A3B8;
+}
+.found-card-v2 .found-card-v2__date {
+  font-size: 12px; font-weight: 700; color: #059669;
+}
+
+/* solved case: green "Case solved" instead of "days missing" */
+.case-card .days.days--solved { color: #047857; background: #ECFDF5; }

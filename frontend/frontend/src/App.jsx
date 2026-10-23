@@ -11,6 +11,7 @@ import SplashScreen from "./components/SplashScreen";
 import Home from "./pages/Home";
 import MissingPersonsList from "./pages/MissingPersonsList";
 import MissingPersonDetail from "./pages/MissingPersonDetail";
+import MissingPoster from "./pages/MissingPoster";
 import PersonFound from "./pages/PersonFound";
 import PersonFoundDetail from "./pages/PersonFoundDetail";
 import ReportMissing from "./pages/ReportMissing";
@@ -18,6 +19,7 @@ import ReportFound from "./pages/ReportFound";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Dashboard from "./pages/Dashboard";
+import EditCase from "./pages/EditCase";
 import Guide from "./pages/Guide";
 import About from "./pages/About";
 import Contact from "./pages/Contact";
@@ -75,18 +77,19 @@ export default function App() {
             {/* ---- Public site ---- */}
             <Route path="/" element={<PublicLayout><Home /></PublicLayout>} />
             <Route path="/missing-persons" element={<PublicLayout><MissingPersonsList /></PublicLayout>} />
-            {/* Case detail is behind RequireAuth as a hard backstop — even a
-                direct URL visit without signing in bounces to /login. */}
+            {/* Case detail is public: photo + basic info + tip form.
+                CNIC, family contact and FIR are removed by the backend. */}
             <Route
               path="/missing-persons/:id"
               element={
                 <PublicLayout>
-                  <RequireAuth>
-                    <MissingPersonDetail />
-                  </RequireAuth>
+                  <MissingPersonDetail />
                 </PublicLayout>
               }
             />
+            {/* Printable poster with QR code (no navbar/footer, prints on A4) */}
+            <Route path="/missing-persons/:id/poster" element={<MissingPoster />} />
+
             {/* Person Found is fully public — no auth guard, ever. */}
             <Route path="/person-found" element={<PublicLayout><PersonFound /></PublicLayout>} />
             <Route path="/person-found/:id" element={<PublicLayout><PersonFoundDetail /></PublicLayout>} />
@@ -111,6 +114,17 @@ export default function App() {
                 <PublicLayout>
                   <RequireAuth>
                     <Dashboard />
+                  </RequireAuth>
+                </PublicLayout>
+              }
+            />
+
+            <Route
+              path="/my-cases/:id/edit"
+              element={
+                <PublicLayout>
+                  <RequireAuth>
+                    <EditCase />
                   </RequireAuth>
                 </PublicLayout>
               }

@@ -5,6 +5,28 @@ import time
 import numpy as np
 from PIL import Image
 import io
+import threading
+
+# One lock so two requests at the same time can't corrupt the JSON file
+_db_lock = threading.RLock()
+
+FACENET_MODEL = "Facenet512"
+HISTOGRAM_MODEL = "histogram"
+
+
+def infer_model(record: dict) -> str:
+    """
+    Older records have no "model" field. Colour-histogram vectors are mostly
+    exact zeros; real Facenet vectors almost never contain an exact zero.
+    """
+    model = record.get("model")
+    if model:
+        return model
+    emb = record.get("embedding") or []
+    if not emb:
+        return FACENET_MODEL
+    zeros = sum(1 for v in emb if v == 0)
+    return HISTOGRAM_MODEL if zeros > len(emb) * 0.5 else FACENET_MODEL
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 FACES_DIR = os.path.join(DATA_DIR, "faces")
@@ -36,8 +58,12 @@ class MissingPersonDBManager:
             self._save_db()
 
     def _save_db(self):
-        with open(self.db_file, "w", encoding="utf-8") as f:
-            json.dump(self.db, f, indent=2)
+        # Write to a temp file then swap, so a crash never leaves half a file
+        with _db_lock:
+            tmp_file = self.db_file + ".tmp"
+            with open(tmp_file, "w", encoding="utf-8") as f:
+                json.dump(self.db, f, indent=2)
+            os.replace(tmp_file, self.db_file)
 
     def enroll_missing_person(
         self,
@@ -49,7 +75,8 @@ class MissingPersonDBManager:
         contact_number: str,
         notes: str,
         img_bytes: bytes,
-        embedding: list
+        embedding: list,
+        model: str = FACENET_MODEL
     ) -> dict:
         """
         Enrolls a new missing person record with photo preview & 512d facial vector.
@@ -87,6 +114,7 @@ class MissingPersonDBManager:
             "image_path": f"/data/faces/{img_filename}",
             "created_at": timestamp,
             "sightings": [],
+            "model": model,
             "embedding": vector.tolist()
         }
 
@@ -192,7 +220,7 @@ class MissingPersonDBManager:
         self._save_db()
         return sighting_entry
 
-    def search_top_candidates(self, query_vector: list, top_k: int = 5, min_threshold: float = 0.30) -> list:
+    def search_top_candidates(self, query_vector: list, top_k: int = 5, min_threshold: float = 0.30, model: str = None) -> list:
         """
         Calculates cosine similarity of query_vector against all enrolled missing persons in memory.
         Returns top K candidate matches sorted by similarity score.
@@ -207,6 +235,10 @@ class MissingPersonDBManager:
         for case_id, record in self.db.items():
             emb = record.get("embedding")
             if not emb:
+                continue
+
+            # Never compare a Facenet vector with a colour histogram
+            if model and infer_model(record) != model:
                 continue
 
             target_vec = np.array(emb, dtype=np.float32)

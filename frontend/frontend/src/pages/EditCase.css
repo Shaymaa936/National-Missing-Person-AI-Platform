@@ -1,0 +1,38 @@
+/* Family edits their own case */
+.edit-case { padding-bottom: 64px; }
+.edit-case-id { font-size: 13px; color: var(--text-supporting); margin-top: 4px; }
+
+.edit-case-note {
+  font-size: 13px;
+  color: #1E3A8A;
+  background: #EFF6FF;
+  border: 1px solid #93C5FD;
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin: 0;
+}
+
+.edit-case-error {
+  max-width: 760px;
+  margin: 0 auto 18px;
+  font-size: 13.5px;
+  color: #991B1B;
+  background: #FEF2F2;
+  border: 1px solid #EF4444;
+  border-radius: 12px;
+  padding: 12px 16px;
+}
+
+.edit-case-loading { text-align: center; color: var(--text-supporting); padding: 40px 0; }
+
+.edit-case-photo { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.edit-case-photo img {
+  width: 64px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+}
+
+.edit-case-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 18px; }
+.edit-case-done { padding: 60px 0; text-align: center; }

@@ -13,15 +13,20 @@ const {
 const {
   protect,
   adminOnly,
+  reviewerOnly,
   staffViewOnly,
 } = require("../middleware/authMiddleware");
 
 const rateLimit = require("../middleware/rateLimit");
+const optionalAuth = require("../middleware/optionalAuth");
+const verifyTurnstile = require("../middleware/verifyTurnstile");
 
 // max 20 tips per 15 minutes per IP
-router.post("/", rateLimit({ windowMs: 15 * 60 * 1000, max: 20 }), submitTip);
+// optionalAuth: tips from logged-in accounts get a "verified" badge
+router.post("/", rateLimit({ windowMs: 15 * 60 * 1000, max: 20 }), verifyTurnstile, optionalAuth, submitTip);
 
-router.get("/case/:caseId", getCaseTips);
+// optionalAuth: police/admin/family get full tips, public only sees a count
+router.get("/case/:caseId", optionalAuth, getCaseTips);
 
 // STAFF: View tips
 router.get(
@@ -31,11 +36,11 @@ router.get(
   getAllTips
 );
 
-// ADMIN ONLY: Change/delete
+// ADMIN + POLICE: approve / reject tips. Delete stays admin only.
 router.put(
   "/:id",
   protect,
-  adminOnly,
+  reviewerOnly,
   updateTipStatus
 );
 

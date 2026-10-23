@@ -17,7 +17,12 @@ const foundDir = path.join(UPLOAD_ROOT, "found");
 // file path on disk, wherever UPLOAD_ROOT is.
 function resolveUploadPath(publicPath) {
   const relative = String(publicPath || "").replace(/^\/?uploads\//, "");
-  return path.join(UPLOAD_ROOT, relative);
+  const full = path.resolve(UPLOAD_ROOT, relative);
+  // Block "../" tricks from reading files outside the uploads folder
+  if (full !== UPLOAD_ROOT && !full.startsWith(UPLOAD_ROOT + path.sep)) {
+    return path.join(UPLOAD_ROOT, "__invalid__");
+  }
+  return full;
 }
 
 // Create folders if they don't exist

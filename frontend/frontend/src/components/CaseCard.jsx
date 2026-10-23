@@ -4,11 +4,14 @@ import { useLanguage } from "../i18n/LanguageContext";
 import { daysBetween } from "../data/mockData";
 import BlurGate from "./BlurGate";
 import StatusBadge from "./StatusBadge";
+import "./CaseCard.css";
 import { API_BASE } from "../api/apiClient";
 
 function getCasePhoto(c) {
+  // Public photos need no token; private ones (family's choice) do
   const token = localStorage.getItem("token");
-  const tokenParam = token ? `?token=${token}` : "";
+  const tokenParam =
+    c?.photoPublic === false && token ? `?token=${token}` : "";
 
   if (c?.image) {
     return c.image.startsWith("http")
@@ -61,11 +64,6 @@ export default function CaseCard({ c }) {
   const days = daysBetween(lastSeen);
 
   function openCase() {
-    if (!isAuthenticated) {
-      navigate("/login");
-      return;
-    }
-
     if (rawId) {
       navigate(`/missing-persons/${rawId}`);
     }
@@ -78,6 +76,8 @@ export default function CaseCard({ c }) {
 
         <BlurGate
           src={photo}
+          privatePhoto={c?.photoPublic === false}
+          childProtected={!!c?.limitedView}
           alt={c?.name || "Missing person"}
           onUnlockedClick={openCase}
         />
@@ -96,6 +96,12 @@ export default function CaseCard({ c }) {
           {c?.name || "Unnamed"}
         </h4>
 
+        {c?.verificationStatus && c.verificationStatus !== "verified" && (
+          <span className={`card-verify card-verify--${c.verificationStatus}`}>
+            {c.verificationStatus === "pending" ? "⏳ Pending verification" : "✖ Not verified"}
+          </span>
+        )}
+
         <div className="meta">
 
           <span>
@@ -108,9 +114,13 @@ export default function CaseCard({ c }) {
 
         </div>
 
-        <span className="days">
-          {days} {t("card.daysMissing")}
-        </span>
+        {status === "found" ? (
+          <span className="days days--solved">✔ {t("status.found")}</span>
+        ) : (
+          <span className="days">
+            {days} {t("card.daysMissing")}
+          </span>
+        )}
 
         <div className="caseid">
           {displayCaseId}

@@ -1,0 +1,31 @@
+/* Success screen: "pending verification" explanation */
+.case-pending-note {
+  margin-top: 14px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #92400E;
+  background: #FFFBEB;
+  border: 1px solid #F59E0B;
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  text-align: start;
+}
+
+
+/* Police / admin entering a case themselves */
+.staff-filing-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid #93C5FD;
+  background: #EFF6FF;
+  color: #1E3A8A;
+  font-size: 13px;
+  flex-wrap: wrap;
+}
+.staff-filing-banner > i { font-size: 20px; color: #2563EB; }
+.staff-filing-banner > div { flex: 1; min-width: 200px; display: flex; flex-direction: column; gap: 2px; }
+.case-pending-note--ok { background: #ECFDF5 !important; border-color: #10B981 !important; color: #065F46 !important; }

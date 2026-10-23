@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { fmtAdmin } from "../../data/adminMockData";
 import StatusBadge from "../StatusBadge";
 
@@ -11,9 +11,19 @@ export default function CaseDetailModal({
 }) {
   const [showRestricted, setShowRestricted] = useState(false);
 
+  // a different case opens with restricted info hidden again
+  useEffect(() => {
+    setShowRestricted(false);
+  }, [c?.id]);
+
   if (!c) return null;
 
+  // show / hide; only opening is logged
   function handleRestricted() {
+    if (showRestricted) {
+      setShowRestricted(false);
+      return;
+    }
     setShowRestricted(true);
 
     if (onViewRestricted) {
@@ -139,6 +149,15 @@ export default function CaseDetailModal({
             </span>
           </div>
 
+          {Array.isArray(c.possibleDuplicates) && c.possibleDuplicates.length > 0 && (
+            <div className="dup-warning" style={{ margin: "8px 0" }}>
+              ⚠ Possible duplicate of:{" "}
+              {c.possibleDuplicates
+                .map((d) => `${d.caseId} (${d.name}, ${d.matchPercentage}%)`)
+                .join(", ")}
+            </div>
+          )}
+
           <div className="detail-row">
             <span className="k">FIR reference</span>
             <span className="v mono">
@@ -150,6 +169,27 @@ export default function CaseDetailModal({
             <span className="k">Reported by</span>
             <span className="v">
               {reportedByName}
+            </span>
+          </div>
+
+          <div className="detail-row">
+            <span className="k">Relationship</span>
+            <span className="v">{c.relationship || "—"}</span>
+          </div>
+
+          {c.bForm && (
+            <div className="detail-row">
+              <span className="k">B-form</span>
+              <span className="v mono">{c.bForm}</span>
+            </div>
+          )}
+
+          <div className="detail-row">
+            <span className="k">Verification</span>
+            <span className="v">
+              {c.verificationStatus || "pending"}
+              {c.verificationMethod ? ` · ${c.verificationMethod.replace("_", " ")}` : ""}
+              {c.publicAlert ? " · public alert ON" : ""}
             </span>
           </div>
 
@@ -300,8 +340,9 @@ export default function CaseDetailModal({
                      <button
                        className="btn btn-secondary btn-sm"
                    onClick={handleRestricted}
+                   aria-expanded={showRestricted}
                    >
-                        View Restricted Info
+                        {showRestricted ? "Hide Restricted Info" : "View Restricted Info"}
                           </button>
                     )}
            {isAdmin && onDelete && (

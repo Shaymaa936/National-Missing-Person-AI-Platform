@@ -5,12 +5,16 @@ import Tesseract from "tesseract.js";
 import { useLanguage } from "../i18n/LanguageContext";
 import { useData } from "../context/DataContext";
 import { useAuth } from "../context/AuthContext";
+import { formatCnic } from "../utils/cnic";
+import PhotoQualityHint from "../components/PhotoQualityHint";
+import { RELATIONSHIPS } from "../utils/relationships";
+import "./ReportMissing.css";
 
 const EMPTY_FORM = {
-  fullName: "", age: "", gender: "male", photo: null,
+  fullName: "", age: "", gender: "", photo: null, photoPublic: true,
   lastLocation: "", lastDateTime: "",
   physical: "", marks: "", clothing: "",
-  cnic: "", firNo: "",
+  cnic: "", firNo: "", bForm: "", relationship: "",
   contactName: "", phone: "", email: "",
 };
 
@@ -43,7 +47,7 @@ function extractFirData(file) {
     }
 
     const cnic = grab(/cnic\s*(?:no\.?|number)?\s*[:\-]\s*([\d\-]{13,15})/i);
-    if (cnic) result.cnic = cnic;
+    if (cnic) result.cnic = formatCnic(cnic);
 
     const firNo = grab(/f\.?i\.?r\.?\s*(?:no\.?|number)?\s*[:\-]\s*([A-Za-z0-9\/\-]{3,20})/i);
     if (firNo) result.firNo = firNo;
@@ -56,11 +60,17 @@ function extractFirData(file) {
 }
 
 export default function ReportMissing() {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const { addMissingCase } = useData();
   const { user } = useAuth();
   const [submitted, setSubmitted] = useState(null);
-  const [form, setForm] = useState(EMPTY_FORM);
+  // open cases that look like the same person (from the AI duplicate check)
+  const [duplicates, setDuplicates] = useState([]);
+  // police / admin entering a case themselves: auto-verified by the backend
+  const isStaffFiler = ["admin", "police"].includes(user?.role);
+  const [form, setForm] = useState(() =>
+    isStaffFiler ? { ...EMPTY_FORM, relationship: "Police / Official" } : EMPTY_FORM
+  );
   const [firFile, setFirFile] = useState(null);
   const [ocrLoading, setOcrLoading] = useState(false);
   const [ocrError, setOcrError] = useState("");
@@ -118,6 +128,7 @@ export default function ReportMissing() {
             .toUpperCase()}`
         : "MP-2026-0001");
 
+    setDuplicates(Array.isArray(result?.possibleDuplicates) ? result.possibleDuplicates : []);
     setSubmitted(displayId);
   } catch (error) {
     devError(
@@ -139,9 +150,54 @@ export default function ReportMissing() {
           <h2>{t("confirmModal.missingTitle")}</h2>
           <p>{t("confirmModal.missingDesc")}</p>
           <div className="track-result found" style={{ fontSize: 16, fontWeight: 700 }}>{submitted}</div>
+          {isStaffFiler ? (
+            <p className="case-pending-note case-pending-note--ok">
+              ✔ {lang === "ur"
+                ? "کیس پولیس / ٹریس اے آئی ٹیم کی طرف سے درج ہوا ہے اور تصدیق شدہ ہے۔ اے آئی میچنگ شروع ہو گئی ہے۔"
+                : "Case entered by police / TraceAI team and verified. AI matching has started."}
+            </p>
+          ) : (
+            <p className="case-pending-note">
+              ⏳ {lang === "ur"
+                ? "تصدیق باقی ہے — ابھی عوامی نہیں۔ پولیس یا ٹریس اے آئی ٹیم آپ کو کال کرے گی۔ اے آئی میچنگ شروع ہو چکی ہے۔"
+                : "Pending verification — not public yet. Police or the TraceAI team will call you. AI matching has already started."}
+            </p>
+          )}
+          {duplicates.length > 0 && (
+            <p className="dup-warning" style={{ marginTop: 14, textAlign: "start" }}>
+              ⚠ {lang === "ur"
+                ? "ملتا جلتا کیس پہلے سے موجود ہو سکتا ہے: "
+                : "A similar case may already be reported: "}
+              <b>{duplicates.map((d) => d.caseId).join(", ")}</b>
+              {lang === "ur" ? "۔ ہماری ٹیم جائزہ لے گی۔" : ". Our team will review it."}
+            </p>
+          )}
           <div style={{ display: "flex", gap: 10, marginTop: 18, justifyContent: "center" }}>
-            <Link to="/dashboard" className="btn btn-primary">{t("confirmModal.dashBtn")}</Link>
-            <Link to="/" className="btn btn-outline">{t("confirmModal.close")}</Link>
+            {isStaffFiler ? (
+              <>
+                <Link to="/admin/dashboard" className="btn btn-primary">
+                  {lang === "ur" ? "ایڈمن پینل پر واپس" : "Back to admin panel"}
+                </Link>
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={() => {
+                    setSubmitted(null);
+                    setDuplicates([]);
+                    setForm({ ...EMPTY_FORM, relationship: "Police / Official" });
+                    setFirFile(null);
+                    setOcrFilled([]);
+                  }}
+                >
+                  {lang === "ur" ? "ایک اور کیس درج کریں" : "Enter another case"}
+                </button>
+              </>
+            ) : (
+              <>
+                <Link to="/dashboard" className="btn btn-primary">{t("confirmModal.dashBtn")}</Link>
+                <Link to="/" className="btn btn-outline">{t("confirmModal.close")}</Link>
+              </>
+            )}
           </div>
         </div>
       </section>
@@ -154,6 +210,22 @@ export default function ReportMissing() {
         <div className="crumb"><Link to="/">{t("nav.home")}</Link> / {t("reportMissing.title")}</div>
         <h1>{t("reportMissing.title")}</h1>
         <p style={{ maxWidth: "60ch", marginTop: 6 }}>{t("reportMissing.desc")}</p>
+        {isStaffFiler && (
+          <div className="staff-filing-banner">
+            <i className="fa-solid fa-shield-halved" aria-hidden="true" />
+            <div>
+              <b>{lang === "ur" ? "پولیس / ٹریس اے آئی ٹیم کی جانب سے کیس" : "Entering a case as police / TraceAI team"}</b>
+              <span>
+                {lang === "ur"
+                  ? "فوراً تصدیق شدہ، روزانہ کی حد نہیں۔ نیچے خاندان یا افسر کا رابطہ دیں۔"
+                  : "Verified immediately, no daily limit. Add the family's or officer's contact below."}
+              </span>
+            </div>
+            <Link to="/admin/dashboard" className="btn btn-outline btn-sm">
+              {lang === "ur" ? "← ایڈمن" : "← Admin"}
+            </Link>
+          </div>
+        )}
       </div>
       <section className="wrap">
         <div style={{ display: "flex", gap: 24, alignItems: "flex-start", flexWrap: "wrap" }}>
@@ -203,7 +275,8 @@ export default function ReportMissing() {
                 </div>
                 <div className="field">
                   <label>{t("reportMissing.gender")} *</label>
-                  <select value={form.gender} onChange={(e) => updateField("gender", e.target.value)}>
+                  <select value={form.gender} onChange={(e) => updateField("gender", e.target.value)} required>
+                    <option value="" disabled>{t("common.selectGender")}</option>
                     <option value="male">{t("common.male")}</option>
                     <option value="female">{t("common.female")}</option>
                     <option value="other">{t("common.other")}</option>
@@ -212,6 +285,18 @@ export default function ReportMissing() {
                 <div className="field full">
                   <label>{t("reportMissing.photo")}</label>
                   <input type="file" accept="image/*" onChange={(e) => updateField("photo", e.target.files?.[0] || null)} />
+                  <PhotoQualityHint file={form.photo} />
+                </div>
+                <div className="field full">
+                  <label className="consent-check">
+                    <input
+                      type="checkbox"
+                      checked={form.photoPublic}
+                      onChange={(e) => updateField("photoPublic", e.target.checked)}
+                    />
+                    <span>{t("reportMissing.photoPublic")}</span>
+                  </label>
+                  <p className="consent-hint">{t("reportMissing.photoPublicHint")}</p>
                 </div>
               </div>
             </div>
@@ -256,19 +341,58 @@ export default function ReportMissing() {
               <div className="form-grid">
                 <div className="field">
                   <label>{t("reportMissing.cnic")}</label>
-                  <input value={form.cnic} onChange={(e) => updateField("cnic", e.target.value)} placeholder="xxxxx-xxxxxxx-x" />
+                  <input
+                    value={form.cnic}
+                    onChange={(e) => updateField("cnic", formatCnic(e.target.value))}
+                    placeholder="xxxxx-xxxxxxx-x"
+                    inputMode="numeric"
+                    autoComplete="off"
+                    maxLength={15}
+                    pattern="\d{5}-\d{7}-\d"
+                    title="13-digit CNIC, e.g. 35202-1234567-1"
+                  />
                 </div>
                 <div className="field">
                   <label>{t("reportMissing.firNo")} ({t("reportMissing.firOpt")})</label>
                   <input value={form.firNo} onChange={(e) => updateField("firNo", e.target.value)} />
                 </div>
+                {form.age !== "" && Number(form.age) < 18 && (
+                  <div className="field">
+                    <label>{lang === "ur" ? "بچے کا ب فارم نمبر *" : "Child's B-form number *"}</label>
+                    <input
+                      value={form.bForm}
+                      onChange={(e) => updateField("bForm", formatCnic(e.target.value))}
+                      placeholder="xxxxx-xxxxxxx-x"
+                      inputMode="numeric"
+                      autoComplete="off"
+                      maxLength={15}
+                      pattern="\d{5}-\d{7}-\d"
+                      title="13-digit B-form number, e.g. 35202-1234567-1"
+                      required
+                    />
+                  </div>
+                )}
               </div>
+              <p className="hint" style={{ marginTop: 10, marginBottom: 0 }}>
+                {lang === "ur"
+                  ? "ابھی ایف آئی آر نہیں؟ رپورٹ جمع کریں — ایف آئی آر بعد میں ڈیش بورڈ سے شامل کر سکتے ہیں۔"
+                  : "No FIR yet? Submit now — you can add it later from your dashboard."}
+              </p>
             </div>
 
             <div className="form-section">
               <h3>5. {t("reportMissing.s5")}</h3>
               <p className="hint">{t("reportMissing.s5h")}</p>
               <div className="form-grid">
+                <div className="field full">
+                  <label>{lang === "ur" ? "لاپتہ شخص سے آپ کا رشتہ *" : "Your relationship to the missing person *"}</label>
+                  <select value={form.relationship} onChange={(e) => updateField("relationship", e.target.value)} required>
+                    <option value="" disabled>{lang === "ur" ? "منتخب کریں" : "Select"}</option>
+                    {RELATIONSHIPS.map((r) => (
+                      <option key={r.value} value={r.value}>{lang === "ur" ? r.ur : r.en}</option>
+                    ))}
+                  </select>
+                </div>
                 <div className="field">
                   <label>{t("reportMissing.contactName")} *</label>
                   <input value={form.contactName} onChange={(e) => updateField("contactName", e.target.value)} required />

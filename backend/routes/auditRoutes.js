@@ -4,14 +4,17 @@ const {
   createAuditLog,
   exportAuditLogs,
    deleteAuditLog,
+  clearAuditLogs,
 } = require("../controllers/auditController");
-const { protect, adminOnly } = require("../middleware/authMiddleware");
+const { protect, adminOnly, staffViewOnly } = require("../middleware/authMiddleware");
 
 const router = express.Router();
 
 router.get("/export", protect, adminOnly, exportAuditLogs);
 router.get("/", protect, adminOnly, getAuditLogs);
-router.post("/", protect, adminOnly, createAuditLog);
+// police / ngo actions are logged too (admin is the only one who reads them)
+router.post("/", protect, staffViewOnly, createAuditLog);
+router.delete("/", protect, adminOnly, clearAuditLogs);
 router.delete("/:id", protect, adminOnly, deleteAuditLog);
 
 module.exports = router;

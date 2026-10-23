@@ -1,9 +1,9 @@
 // Talks to the Node backend's /api/auth/users endpoints for the
 // admin "Users & Roles" panel (list, change role, suspend/reactivate, delete).
 
-const API_BASE = import.meta.env.VITE_API_URL ;
+import { API_BASE } from "./apiClient";
 if (!API_BASE && import.meta.env.DEV) {
-  console.error("VITE_API_URL is not defined! Check your .env file.");
+  /* fallback address is handled in apiClient.js */
 }
 
 function authHeaders(token) {
@@ -43,6 +43,17 @@ export async function updateUserStatusApi(token, id, status) {
   return data;
 }
 
+export async function updateUserCnicStatusApi(token, id, cnicStatus) {
+  const res = await fetch(`${API_BASE}/api/auth/users/${id}/cnic-status`, {
+    method: "PUT",
+    headers: authHeaders(token),
+    body: JSON.stringify({ cnicStatus }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || "Failed to update CNIC status");
+  return data;
+}
+
 export async function deleteUserApi(token, id) {
   const res = await fetch(`${API_BASE}/api/auth/users/${id}`, {
     method: "DELETE",
@@ -62,6 +73,7 @@ export function toUserShape(u) {
     email: u.email,
     role: u.role,
     status: u.status,
+    cnicStatus: u.cnicStatus || "pending",
     joined: u.createdAt,
   };
 }

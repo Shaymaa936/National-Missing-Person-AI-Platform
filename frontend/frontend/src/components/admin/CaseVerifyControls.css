@@ -1,0 +1,69 @@
+.cvc { display: flex; flex-direction: column; gap: 6px; min-width: 170px; }
+
+.cvc-badge {
+  width: fit-content;
+  font-size: 11.5px;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 3px 10px;
+  border: 1px solid;
+}
+.cvc-badge--pending { color: #92400E; background: #FFFBEB; border-color: #F59E0B; }
+.cvc-badge--verified { color: #047857; background: #ECFDF5; border-color: #10B981; }
+.cvc-badge--rejected { color: #991B1B; background: #FEF2F2; border-color: #EF4444; }
+
+.cvc-chip {
+  width: fit-content;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--nav-header);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 1px 8px;
+}
+
+.cvc-actions { display: flex; flex-wrap: wrap; gap: 5px; }
+
+.cvc-btn {
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 4px 9px;
+  border-radius: 7px;
+  border: 1.5px solid var(--border);
+  background: #fff;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background .15s, border-color .15s, color .15s;
+}
+.cvc-btn:hover { border-color: var(--nav-header); }
+.cvc-btn:disabled { opacity: .55; cursor: not-allowed; }
+.cvc-btn--ok { background: #059669; border-color: #059669; color: #fff; }
+.cvc-btn--ok:hover { background: #047857; border-color: #047857; }
+.cvc-btn--no { color: #991B1B; border-color: #FCA5A5; }
+.cvc-btn--no:hover { background: #FEF2F2; border-color: #EF4444; }
+.cvc-btn--alert { color: var(--emergency); border-color: #FDBA74; }
+.cvc-btn--alert:hover { background: #FFF7ED; border-color: var(--emergency); }
+.cvc-btn--alert-on { background: var(--emergency); border-color: var(--emergency); color: #fff; }
+
+.cvc-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px;
+}
+.cvc-panel label { font-size: 11px; font-weight: 600; color: var(--text-supporting); }
+.cvc-panel select, .cvc-panel input {
+  font: inherit;
+  font-size: 12px;
+  padding: 5px 7px;
+  border: 1.5px solid var(--border);
+  border-radius: 6px;
+  background: #fff;
+}

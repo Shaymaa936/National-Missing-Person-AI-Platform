@@ -1,6 +1,8 @@
 const mongoose = require("mongoose");
 const Tip = require("../models/Tip");
 const MissingPerson = require("../models/MissingPerson");
+const { RESTRICTED_DATA_ROLES } = require("../middleware/authMiddleware");
+const { notifyCaseFamily } = require("../services/notifyService");
 
 // =====================================================
 // SUBMIT TIP
@@ -8,7 +10,12 @@ const MissingPerson = require("../models/MissingPerson");
 
 const submitTip = async (req, res) => {
   try {
-    const { caseId, message, name, location } = req.body;
+    // String() blocks NoSQL operator injection like {"$ne": null}
+    const caseId = req.body.caseId ? String(req.body.caseId).trim() : "";
+    const message = req.body.message ? String(req.body.message).slice(0, 2000) : "";
+    const name = req.body.name ? String(req.body.name).slice(0, 100) : "";
+    const location = req.body.location ? String(req.body.location).slice(0, 200) : "";
+    const contact = req.body.contact ? String(req.body.contact).trim().slice(0, 30) : "";
 
     if (!caseId || !message?.trim()) {
       return res.status(400).json({
@@ -42,6 +49,9 @@ const submitTip = async (req, res) => {
       message: message.trim(),
       name: name?.trim() || "Anonymous",
       location: location?.trim() || "—",
+      contact,
+      verified: !!req.user,
+      submittedBy: req.user ? req.user.id : null,
       status: "pending",
     });
 
@@ -65,9 +75,23 @@ const submitTip = async (req, res) => {
 // Public endpoint
 // =====================================================
 
+// Tip text can reveal where someone was seen, so only police/admin and
+// the family who filed the case get the full tips. Everyone else only
+// sees that tips exist (no message, place or name).
+async function canReadTipsFor(user, caseId) {
+  if (!user) return false;
+  if (RESTRICTED_DATA_ROLES.includes(user.role)) return true;
+  const query = mongoose.Types.ObjectId.isValid(caseId)
+    ? { $or: [{ _id: caseId }, { caseId }] }
+    : { caseId };
+  const person = await MissingPerson.findOne(query).select("reportedBy");
+  return !!person?.reportedBy && String(person.reportedBy) === String(user.id);
+}
+
 const getCaseTips = async (req, res) => {
   try {
     const { caseId } = req.params;
+    const fullAccess = await canReadTipsFor(req.user, caseId);
 
     let tips = [];
 
@@ -79,12 +103,24 @@ const getCaseTips = async (req, res) => {
           { caseTrackingId: caseId },
         ],
         status: "approved",
-      }).sort({ createdAt: -1 });
+      }).select("-contact -submittedBy").sort({ createdAt: -1 });
     } else {
       tips = await Tip.find({
         caseTrackingId: caseId,
         status: "approved",
-      }).sort({ createdAt: -1 });
+      }).select("-contact -submittedBy").sort({ createdAt: -1 });
+    }
+
+    if (!fullAccess) {
+      tips = tips.map((t) => ({
+        _id: t._id,
+        status: t.status,
+        createdAt: t.createdAt,
+        name: "Anonymous",
+        message: "",
+        location: "",
+        hidden: true,
+      }));
     }
 
     res.status(200).json(tips);
@@ -112,7 +148,15 @@ const getAllTips = async (req, res) => {
       )
       .sort({ createdAt: -1 });
 
-    res.status(200).json(tips);
+    // NGO partners don't see the tipster's phone number
+    const canSeeContact = RESTRICTED_DATA_ROLES.includes(req.user?.role);
+    const safeTips = tips.map((t) => {
+      const obj = t.toObject ? t.toObject() : t;
+      if (!canSeeContact) delete obj.contact;
+      return obj;
+    });
+
+    res.status(200).json(safeTips);
   } catch (error) {
     console.error("Get all tips error:", error);
 
@@ -158,6 +202,14 @@ const updateTipStatus = async (req, res) => {
       return res.status(404).json({
         message: "Tip not found",
       });
+    }
+
+    if (normalizedStatus === "approved" && tip.caseId) {
+      notifyCaseFamily(tip.caseId._id || tip.caseId, "New verified tip on your case", [
+        "Someone has shared information about this case and our team has reviewed it.",
+        "The police / TraceAI team will follow it up and contact you if needed.",
+        "آپ کے کیس پر نئی اطلاع موصول ہوئی ہے جس کا جائزہ لے لیا گیا ہے۔",
+      ]).catch(() => {});
     }
 
     res.status(200).json(tip);

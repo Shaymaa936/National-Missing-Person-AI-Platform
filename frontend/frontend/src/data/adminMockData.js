@@ -18,7 +18,8 @@ export function roleLabel(r) {
   return {
     admin: "Administrator",
     investigator: "Investigator",
-    police: "Police Liaison",
+    police: "Police / Investigator",
+    user: "Public User",
     dpo: "Data Protection Officer",
     reporter: "Reporter",
     tipster: "Tipster",

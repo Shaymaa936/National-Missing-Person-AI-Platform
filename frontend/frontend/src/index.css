@@ -142,7 +142,7 @@ p { color: var(--text-supporting); }
   background: linear-gradient(90deg, rgba(15,23,42,.75) 0%, rgba(15,23,42,.45) 40%, rgba(15,23,42,.15) 70%, rgba(15,23,42,.05) 100%);
 }
 .hero-slideshow .hero-grid { position: relative; z-index: 2; }
-.hero-slideshow h1 { color: #fff; };
+.hero-slideshow h1 { color: #fff; }
 .hero-slideshow p.lead {color: whitesmoke;}
 .hero.hero-slideshow .hero-grid p.lead {
   color: #fff;
@@ -554,3 +554,218 @@ table.data tr:hover td { background: #FAFBFC; }
 @media (max-width: 620px) {
   .hero-slideshow { min-height: 460px; }
 }
+
+/* =====================================================
+   UI POLISH — same colours, smoother feel
+   ===================================================== */
+
+/* Inputs: hover + clear focus ring in the brand orange */
+.field input, .field select, .field textarea {
+  transition: border-color .15s, box-shadow .15s, background .15s;
+}
+.field input:hover, .field select:hover, .field textarea:hover { border-color: #CBD5E1; }
+.field input:focus, .field select:focus, .field textarea:focus {
+  outline: none;
+  border-color: var(--emergency);
+  box-shadow: 0 0 0 3px rgba(234, 88, 12, .14);
+}
+.field input::placeholder, .field textarea::placeholder { color: #94A3B8; }
+.field select:invalid { color: #94A3B8; }
+.field select option { color: var(--text-primary); }
+
+/* Keyboard users can always see where they are */
+.btn:focus-visible, a:focus-visible, .icon-btn:focus-visible, .badge-btn:focus-visible {
+  outline: 2px solid var(--emergency);
+  outline-offset: 2px;
+}
+
+/* Buttons: soft lift on hover, proper disabled state */
+.btn { transition: transform .12s, box-shadow .15s, background .15s, color .15s, border-color .15s; }
+.btn:hover { box-shadow: var(--shadow-md); }
+.btn-ghost:hover { background: #F1F5F9; border-color: #CBD5E1; }
+.btn:disabled, .btn[disabled] { opacity: .55; cursor: not-allowed; box-shadow: none; transform: none; }
+
+/* Case cards: gentle lift + photo zoom */
+.case-card { transition: box-shadow .18s, transform .18s; }
+.case-card:hover { transform: translateY(-3px); }
+.case-card .photo img { transition: transform .35s ease; }
+.case-card:hover .photo img { transform: scale(1.04); }
+
+/* Form sections + auth box: a little more breathing room */
+.form-section { box-shadow: var(--shadow-sm); }
+.form-section + .form-section { margin-top: 18px; }
+.auth-shell { border-top: 4px solid var(--emergency); }
+
+/* Photo-consent checkbox (Report Missing) */
+.consent-check {
+  display: flex; align-items: flex-start; gap: 10px; cursor: pointer;
+  text-transform: none !important; letter-spacing: 0 !important;
+  font-size: 13.5px !important; font-weight: 600; color: var(--text-primary) !important;
+  background: var(--bg-subtle); border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm); padding: 11px 13px;
+  transition: border-color .15s;
+}
+.consent-check:hover { border-color: #CBD5E1; }
+.consent-check input[type="checkbox"] {
+  width: 18px !important; height: 18px; margin-top: 1px; flex-shrink: 0;
+  accent-color: var(--emergency); cursor: pointer;
+}
+.consent-hint { font-size: 12px; color: var(--text-supporting); margin-top: 6px; line-height: 1.5; }
+
+/* Possible-duplicate warning (admin modal + success screen) */
+.dup-warning {
+  border: 1.5px solid var(--alert-badge);
+  background: #FFF7ED;
+  color: #9A3412;
+  border-radius: var(--radius-sm);
+  padding: 10px 13px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* Clickable CNIC status badge in Users & Roles */
+.badge-btn { cursor: pointer; font-family: inherit; transition: filter .15s, transform .12s; }
+.badge-btn:hover { filter: brightness(.96); }
+.badge-btn:active { transform: scale(.96); }
+
+/* RTL: checkbox row flips correctly */
+body.rtl .consent-check { flex-direction: row-reverse; text-align: right; }
+
+/* All checkboxes / radios use the brand orange */
+input[type="checkbox"], input[type="radio"] { accent-color: var(--emergency); }
+
+/* =====================================================
+   PREMIUM THEME — same colours, more depth & polish
+   (paste at the very end of index.css)
+   ===================================================== */
+:root {
+  --shadow-lg: 0 14px 34px rgba(15, 23, 42, .12);
+  --orange-soft: #FFF7ED;
+  --radius-xl: 16px;
+}
+
+body {
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+h1, h2, h3 { letter-spacing: -0.02em; }
+
+/* ---------- HERO (glass track card, stats and video overlay kept as they were) ---------- */
+.hero h1 { font-size: clamp(34px, 4.4vw, 52px); font-weight: 800; line-height: 1.08; }
+.hero-cta .btn { padding: 14px 22px; border-radius: 12px; }
+.hero-cta .btn-primary { box-shadow: 0 10px 24px rgba(234, 88, 12, .35); }
+.hero-cta .btn:hover { transform: translateY(-1px); }
+
+/* ---------- SECTIONS ---------- */
+section { padding: 72px 0; }
+.section-head h2 { font-size: clamp(24px, 2.6vw, 32px); font-weight: 800; }
+.section-head h2::before {
+  content: "";
+  display: block;
+  width: 44px;
+  height: 4px;
+  border-radius: 4px;
+  background: var(--emergency);
+  margin-bottom: 14px;
+}
+body.rtl .section-head h2::before { margin-left: auto; }
+
+/* ---------- CASE CARDS ---------- */
+.case-card { border-radius: var(--radius-xl); }
+.case-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); border-color: #CBD5E1; }
+.case-card .photo::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 45%;
+  background: linear-gradient(to top, rgba(15, 23, 42, .35), transparent);
+  pointer-events: none;
+}
+.case-card .stampwrap { position: absolute; z-index: 2; }
+.case-card .body { padding: 16px 16px 12px; }
+.case-card .body h4 { font-size: 16.5px; }
+.case-card .days {
+  display: inline-block;
+  background: var(--orange-soft);
+  border-radius: 999px;
+  padding: 2px 10px;
+  width: fit-content;
+}
+.case-card .actions { padding: 0 16px 16px; }
+.case-card .actions .btn {
+  border-color: var(--border);
+  color: var(--nav-header);
+  background: #fff;
+  padding: 10px 14px;
+}
+.case-card .actions .btn:hover { background: var(--emergency); border-color: var(--emergency); color: #fff; }
+
+/* badges: rounded pills everywhere */
+.badge { border-radius: 999px; padding: 4px 11px; }
+
+/* ---------- FILTER BAR (Missing Persons) ---------- */
+.filters-bar { background: #fff; box-shadow: var(--shadow-sm); border-radius: var(--radius-xl); padding: 18px; }
+.filters-bar .btn { height: 42px; padding: 0 22px; }
+.filters-bar input, .filters-bar select { height: 42px; }
+
+/* ---------- FOOTER ---------- */
+.footer-flinks a, .footer-flinks span { font-size: 13.5px; color: #94A3B8; transition: color .15s; width: fit-content; }
+.footer-flinks a:hover { color: #fff; }
+
+/* =====================================================
+   ADMIN CONSOLE
+   ===================================================== */
+.admin-sidebar { background: linear-gradient(180deg, #0F172A 0%, #131D35 100%); }
+.admin-nav .item { transition: background .15s, color .15s; }
+.admin-nav .item:hover { color: #fff; }
+.admin-nav .item.active { box-shadow: 0 8px 20px rgba(234, 88, 12, .35); }
+.admin-avatar { box-shadow: 0 0 0 3px rgba(249, 115, 22, .25); }
+
+.admin-topbar {
+  background: rgba(255, 255, 255, .88);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.admin-topbar h2 { font-weight: 800; letter-spacing: -0.02em; }
+
+/* KPI cards: coloured accent line, bigger numbers, lift on hover */
+.kpi {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-xl);
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+  transition: transform .18s, box-shadow .18s;
+}
+.kpi::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 3px; background: var(--emergency); }
+.kpi-grid > .kpi:nth-child(2)::before { background: #D97706; }
+.kpi-grid > .kpi:nth-child(3)::before { background: #059669; }
+.kpi-grid > .kpi:nth-child(4)::before { background: var(--nav-header); }
+.kpi-grid > .kpi:nth-child(5)::before { background: #2563EB; }
+.kpi:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
+.kpi .ic { width: 42px; height: 42px; border-radius: 12px; font-size: 17px; }
+.kpi .val { font-size: 34px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; }
+.kpi .lbl { font-size: 12.5px; font-weight: 500; }
+.kpi .trend { padding: 3px 9px; border-radius: 999px; background: var(--bg-subtle); }
+
+/* panels + tables */
+.panel { border-radius: var(--radius-xl); box-shadow: var(--shadow-sm); }
+.panel-head h3 { font-size: 16px; font-weight: 700; }
+table.data th { font-weight: 700; padding: 12px 16px; }
+table.data td { padding: 14px 16px; }
+table.data tr:hover td { background: var(--orange-soft); }
+.cell-person img { border-radius: 8px; box-shadow: 0 2px 6px rgba(15, 23, 42, .15); }
+.icon-btn { transition: background .15s, border-color .15s, color .15s; }
+.icon-btn:hover { border-color: var(--emergency); color: var(--emergency); background: var(--orange-soft); }
+
+/* Activity panel: friendly empty state instead of a blank box */
+.two-col > .panel:last-child > div:empty::before {
+  content: "No recent activity yet";
+  display: block;
+  padding: 48px 20px;
+  text-align: center;
+  color: var(--text-supporting);
+  font-size: 13.5px;
+}
+.empty-state { padding: 48px 20px; }

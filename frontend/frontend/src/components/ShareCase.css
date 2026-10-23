@@ -1,0 +1,52 @@
+.share-case {
+  margin-top: 14px;
+  padding: 14px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.share-case__title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--text-supporting);
+  margin-bottom: 10px;
+}
+
+.share-case__buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.share-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 9px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1.5px solid transparent;
+  transition: transform .12s, filter .15s, box-shadow .15s;
+  text-decoration: none;
+}
+.share-btn:hover { filter: brightness(.95); box-shadow: var(--shadow-sm); }
+.share-btn:active { transform: scale(.97); }
+.share-btn:focus-visible { outline: 2px solid var(--emergency); outline-offset: 2px; }
+
+/* brand colours of the platforms themselves */
+.share-btn--whatsapp { background: #25D366; color: #fff; }
+.share-btn--facebook { background: #1877F2; color: #fff; }
+.share-btn--copy { background: #fff; color: var(--text-primary); border-color: var(--border); }
+
+.share-btn--poster {
+  width: 100%;
+  margin-top: 8px;
+  background: var(--nav-header);
+  color: #fff;
+}

@@ -7,16 +7,20 @@ import { useData } from "../context/DataContext";
 import { useAuth } from "../context/AuthContext";
 import StatusBadge from "../components/StatusBadge";
 import { API_BASE } from "../api/apiClient";
+import ShareCase from "../components/ShareCase";
+import CaseNotice from "../components/CaseNotice";
+import Turnstile, { TURNSTILE_ENABLED } from "../components/Turnstile";
 
 /* =====================================================
    IMAGE URL
 ===================================================== */
 
-function toImageUrl(image, fallback = "") {
+function toImageUrl(image, fallback = "", isPrivate = false) {
   if (!image) return fallback;
 
+  // Public photos need no token; private ones (family's choice) do
   const token = localStorage.getItem("token");
-  const tokenParam = token ? `?token=${token}` : "";
+  const tokenParam = isPrivate && token ? `?token=${token}` : "";
 
   return image.startsWith("http")
     ? image
@@ -57,6 +61,13 @@ function normalizeBackendCase(person) {
       person.id,
 
     _id: person._id,
+
+    // verification + child-privacy flags from the backend
+    verificationStatus: person.verificationStatus,
+    verificationNote: person.verificationNote,
+    publicAlert: !!person.publicAlert,
+    isMinor: !!person.isMinor,
+    limitedView: !!person.limitedView,
 
     caseId:
       person.caseId ||
@@ -123,7 +134,7 @@ function normalizeBackendCase(person) {
     ================================= */
 
     photo:
-      toImageUrl(person.image),
+      toImageUrl(person.image, "", person.photoPublic === false),
 
     /* ================================
        RESTRICTED INFORMATION
@@ -252,6 +263,14 @@ export default function MissingPersonDetail() {
 
   const [tipMsg, setTipMsg] =
     useState("");
+
+  // optional phone so police can call the tipster back
+  const [tipPhone, setTipPhone] =
+    useState("");
+
+  // captcha token for the tip form (only used when Turnstile keys are set)
+  const [tipCaptcha, setTipCaptcha] = useState("");
+  const [tipCaptchaKey, setTipCaptchaKey] = useState(0);
 
   const [localTips, setLocalTips] =
     useState([]);
@@ -517,6 +536,11 @@ export default function MissingPersonDetail() {
       return;
     }
 
+    if (TURNSTILE_ENABLED && !tipCaptcha) {
+      alert("Please complete the security check.");
+      return;
+    }
+
     try {
       const token =
         localStorage.getItem("token");
@@ -537,6 +561,10 @@ export default function MissingPersonDetail() {
                       `Bearer ${token}`,
                   }
                 : {}),
+
+              ...(tipCaptcha
+                ? { "X-Turnstile-Token": tipCaptcha }
+                : {}),
             },
 
             body: JSON.stringify({
@@ -547,6 +575,9 @@ export default function MissingPersonDetail() {
 
               message:
                 tipMsg.trim(),
+
+              contact:
+                tipPhone.trim(),
 
               name:
                 "Anonymous",
@@ -559,6 +590,9 @@ export default function MissingPersonDetail() {
 
       const data =
         await response.json();
+
+      // captcha tokens work once: get a fresh one
+      setTipCaptchaKey((k) => k + 1);
 
       if (!response.ok) {
         throw new Error(
@@ -602,6 +636,7 @@ export default function MissingPersonDetail() {
       ]);
 
       setTipMsg("");
+      setTipPhone("");
       setShowTipForm(false);
 
       alert(
@@ -677,7 +712,11 @@ export default function MissingPersonDetail() {
                     "center",
                 }}
               >
-                No image
+                {c.limitedView
+                  ? lang === "ur"
+                    ? "🛡 بچے کی حفاظت کے لیے تصویر پوشیدہ"
+                    : "🛡 Photo hidden to protect the child"
+                  : "No image"}
               </div>
             )}
           </div>
@@ -752,6 +791,14 @@ export default function MissingPersonDetail() {
 
           </div>
 
+          {/* SHARE: WhatsApp / Facebook / copy link / poster */}
+
+          <ShareCase
+            caseId={c.caseId || c.id}
+            name={c.name}
+            location={c.location || c.lastSeenLocation}
+          />
+
           {/* BACK */}
 
           <Link
@@ -775,6 +822,8 @@ export default function MissingPersonDetail() {
           <h1>
             {c.name}
           </h1>
+
+          <CaseNotice c={c} />
 
           {/* =================================================
               GENERAL INFORMATION
@@ -900,7 +949,9 @@ export default function MissingPersonDetail() {
                 </td>
 
                 <td>
-                  {c.fir}
+                  {c.fir && c.fir !== "—"
+                    ? c.fir
+                    : "🔒 Restricted (police only)"}
                 </td>
               </tr>
 
@@ -1069,6 +1120,22 @@ export default function MissingPersonDetail() {
 
               </div>
 
+              <div className="field full" style={{ marginTop: 12 }}>
+                <label>
+                  {lang === "ur"
+                    ? "آپ کا فون نمبر (اختیاری، صرف پولیس دیکھے گی)"
+                    : "Your phone number (optional, only police will see it)"}
+                </label>
+                <input
+                  type="tel"
+                  value={tipPhone}
+                  placeholder="03xx-xxxxxxx"
+                  onChange={(e) => setTipPhone(e.target.value)}
+                />
+              </div>
+
+              <Turnstile onToken={setTipCaptcha} resetKey={tipCaptchaKey} />
+
               <p
                 style={{
                   fontSize: 12,
@@ -1154,7 +1221,10 @@ export default function MissingPersonDetail() {
                     </div>
 
                     <p>
-                      {tp.msg}
+                      {tp.msg ||
+                        (lang === "ur"
+                          ? "🔒 اطلاع پولیس کے ساتھ خفیہ طور پر شیئر کی گئی ہے"
+                          : "🔒 Tip shared privately with police")}
                     </p>
 
                   </div>

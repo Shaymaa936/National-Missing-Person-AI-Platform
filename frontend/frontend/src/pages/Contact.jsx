@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useLanguage } from "../i18n/LanguageContext";
 import { API_BASE } from "../api/apiClient";
+import Turnstile, { TURNSTILE_ENABLED } from "../components/Turnstile";
 
 export default function Contact() {
   const { t } = useLanguage();
@@ -11,6 +12,8 @@ export default function Contact() {
   const [msg, setMsg] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [captcha, setCaptcha] = useState("");
+  const [captchaKey, setCaptchaKey] = useState(0);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -31,6 +34,11 @@ export default function Contact() {
       return;
     }
 
+    if (TURNSTILE_ENABLED && !captcha) {
+      setError("Please complete the security check.");
+      return;
+    }
+
     try {
       setLoading(true);
 
@@ -40,6 +48,7 @@ export default function Contact() {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            ...(captcha ? { "X-Turnstile-Token": captcha } : {}),
           },
           body: JSON.stringify({
             name,
@@ -51,6 +60,9 @@ export default function Contact() {
       );
 
       const data = await response.json();
+
+      // captcha tokens work once: get a fresh one
+      setCaptchaKey((k) => k + 1);
 
       if (!response.ok) {
         throw new Error(data.message || "Failed to send message");
@@ -170,6 +182,8 @@ export default function Contact() {
                   {error}
                 </div>
               )}
+
+              <Turnstile onToken={setCaptcha} resetKey={captchaKey} />
 
               {/* SUBMIT BUTTON */}
               <button

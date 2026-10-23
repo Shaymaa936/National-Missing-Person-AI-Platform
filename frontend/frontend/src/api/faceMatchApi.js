@@ -2,9 +2,9 @@
 // to the Python face-detection engine). Keeps AdminDashboard.jsx focused
 // on UI instead of fetch plumbing.
 
-const API_BASE = import.meta.env.VITE_API_URL ;
+import { API_BASE } from "./apiClient";
 if (!API_BASE && import.meta.env.DEV) {
-  console.error("VITE_API_URL is not defined! Check your .env file.");
+  /* fallback address is handled in apiClient.js */
 }
 
 function authHeaders(token) {

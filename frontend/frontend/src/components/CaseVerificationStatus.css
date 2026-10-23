@@ -1,0 +1,27 @@
+.cvs {
+  margin-top: 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid;
+  padding: 10px 12px;
+  font-size: 12.5px;
+}
+.cvs--pending { background: #FFFBEB; border-color: #F59E0B; }
+.cvs--verified { background: #ECFDF5; border-color: #A7F3D0; }
+.cvs--rejected { background: #FEF2F2; border-color: #FCA5A5; }
+
+.cvs-title { font-weight: 700; font-size: 13px; color: var(--text-primary); }
+.cvs-text { margin-top: 3px; color: var(--text-supporting); line-height: 1.45; font-size: 12.5px; }
+.cvs-msg { margin-top: 6px; font-weight: 600; font-size: 12px; color: var(--nav-header); }
+
+.cvs-fir { display: flex; gap: 6px; margin-top: 8px; }
+.cvs-fir input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 12.5px;
+  padding: 7px 9px;
+  border: 1.5px solid var(--border);
+  border-radius: 7px;
+  background: #fff;
+}
+.cvs-fir input:focus { outline: none; border-color: var(--emergency); }

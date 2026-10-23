@@ -3,6 +3,32 @@ import { API_BASE } from "../api/apiClient";
 
 const AuthContext = createContext(null);
 
+// Reads a JSON reply; if the server sent nothing / not JSON (backend not
+// running, wrong address), gives a clear message instead of
+// "Unexpected end of JSON input".
+async function readJson(response) {
+  const text = await response.text();
+  try {
+    return text ? JSON.parse(text) : null;
+  } catch {
+    return null;
+  }
+}
+
+function serverError(response) {
+  return new Error(
+    `Can't reach the server (${response.status}). Check that the backend is running and VITE_API_URL in frontend/.env is correct.`
+  );
+}
+
+// Old role names -> new 4 roles (same mapping as backend/utils/migrateRoles.js),
+// so people already logged in with an old role aren't locked out.
+const LEGACY_ROLE_MAP = { investigator: "police", dpo: "ngo", reporter: "ngo", tipster: "ngo" };
+function withCurrentRole(u) {
+  if (u && LEGACY_ROLE_MAP[u.role]) return { ...u, role: LEGACY_ROLE_MAP[u.role] };
+  return u;
+}
+
 // Reads the expiry time from the JWT. The token lasts 1 day; after that,
 // protected photos return 401 and look "missing" while the UI still shows
 // the user as logged in. We use this to log the user out on expiry instead.
@@ -34,7 +60,7 @@ export function AuthProvider({ children }) {
   }
 
   try {
-    return JSON.parse(savedUser);
+    return withCurrentRole(JSON.parse(savedUser));
   } catch {
     localStorage.removeItem("user");
     localStorage.removeItem("token");
@@ -54,7 +80,9 @@ export function AuthProvider({ children }) {
       }),
     });
 
-    const data = await response.json();
+    const data = await readJson(response);
+
+    if (!data) throw serverError(response);
 
     if (!response.ok) {
       throw new Error(data.message || "Login failed");
@@ -72,13 +100,14 @@ export function AuthProvider({ children }) {
   }, []);
 
 const signup = useCallback(
-  async (name, email, password, cnic, phone) => {
+  async (name, email, password, cnic, phone, captchaToken = "") => {
     const response = await fetch(
      `${API_BASE}/api/auth/signup`,
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          ...(captchaToken ? { "X-Turnstile-Token": captchaToken } : {}),
         },
         body: JSON.stringify({
           name,
@@ -90,7 +119,9 @@ const signup = useCallback(
       }
     );
 
-    const data = await response.json();
+    const data = await readJson(response);
+
+    if (!data) throw serverError(response);
 
     if (!response.ok) {
       throw new Error(data.message || "Signup failed");

@@ -14,8 +14,8 @@ export default function ChatWidget() {
   const scrollRef = useRef(null);
 
   const greeting = isUrdu
-    ? "السلام علیکم! میں Trace اسسٹنٹ ہوں۔ لاپتہ افراد کی رپورٹ، کیسز تلاش کرنے، یا سائٹ استعمال کرنے میں مدد چاہیے؟"
-    : "Assalam-o-Alaikum! I’m the Trace Assistant. If you need to report a missing person, search for cases, or need help using the website  just ask!";
+    ? "السلام علیکم! میں ٹریس اے آئی اسسٹنٹ ہوں۔ رپورٹ، کیس تلاش یا سائٹ کے بارے میں پوچھیں۔"
+    : "Assalam-o-Alaikum! I’m the TraceAI Assistant. Ask me about reporting a missing person, finding a case or using the site.";
 
   useEffect(() => {
     if (open && messages.length === 0) {
@@ -99,7 +99,7 @@ export default function ChatWidget() {
             <div>
               <div className="chat-panel-title">
                 <span className="chat-mark">T</span>
-                {isUrdu ? "Trace اسسٹنٹ" : "Trace Assistant"}
+                {isUrdu ? "ٹریس اے آئی اسسٹنٹ" : "TraceAI Assistant"}
               </div>
               <div className="chat-panel-status">
                 {isUrdu ? "آن لائن" : "Online"}
@@ -114,8 +114,14 @@ export default function ChatWidget() {
               </div>
             ))}
             {loading && (
-              <div className="chat-bubble chat-bubble-bot chat-bubble-typing">
-                {isUrdu ? "لکھ رہا ہے..." : "Type kar raha hai..."}
+              <div
+                className="chat-bubble chat-bubble-bot chat-bubble-typing"
+                role="status"
+                aria-label={isUrdu ? "لکھ رہا ہے" : "Typing"}
+              >
+                <span className="chat-dot" />
+                <span className="chat-dot" />
+                <span className="chat-dot" />
               </div>
             )}
           </div>

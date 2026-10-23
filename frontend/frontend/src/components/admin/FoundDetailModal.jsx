@@ -1,12 +1,22 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { fmtAdmin } from "../../data/adminMockData";
 import StatusBadge from "../StatusBadge";
 
 export default function FoundDetailModal({ f, onClose, onViewRestricted, onApprove, onDelete, onSendFaceMatch,  isAdmin, }) {
   const [showRestricted, setShowRestricted] = useState(false);
+
+  // a different case opens with restricted info hidden again
+  useEffect(() => {
+    setShowRestricted(false);
+  }, [f?.id]);
   if (!f) return null;
 
+  // show / hide; only opening is logged
   function handleRestricted() {
+    if (showRestricted) {
+      setShowRestricted(false);
+      return;
+    }
     setShowRestricted(true);
     onViewRestricted(f.id);
   }
@@ -80,8 +90,9 @@ export default function FoundDetailModal({ f, onClose, onViewRestricted, onAppro
   <button
     className="btn btn-secondary btn-sm"
     onClick={handleRestricted}
+    aria-expanded={showRestricted}
   >
-    View Restricted Info
+    {showRestricted ? "Hide Restricted Info" : "View Restricted Info"}
   </button>
 )}
 

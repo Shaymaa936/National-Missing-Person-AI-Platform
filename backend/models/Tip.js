@@ -32,6 +32,25 @@ const tipSchema = new mongoose.Schema(
       trim: true,
     },
 
+    // Optional phone so police can call back. Visible to police/admin only.
+    contact: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    // Sent by a logged-in account (CNIC on file) -> more trustworthy
+    verified: {
+      type: Boolean,
+      default: false,
+    },
+
+    submittedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+
     status: {
       type: String,
       enum: ["pending", "approved", "rejected"],

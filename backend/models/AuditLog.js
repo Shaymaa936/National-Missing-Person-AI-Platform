@@ -11,6 +11,12 @@ const auditLogSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
     },
+    // admin / police / ngo / user — the admin log hides "user" entries
+    actorRole: {
+      type: String,
+      default: "",
+      trim: true,
+    },
     action: {
       type: String,
       required: true,

@@ -1,103 +1,75 @@
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { fmtDate } from "../data/mockData";
 import { useLanguage } from "../i18n/LanguageContext";
+import { foundDisplayName, genderLabel } from "../utils/personDisplay";
+import "./CaseCard.css";
 
 /**
- * Person-found card. Unlike CaseCard, the photo here is NEVER
- * blurred and the page is fully open to visitors without signing in —
- * per spec, found-person photos are public.
+ * Person-found card — same layout as the missing-person CaseCard.
+ * Found-person photos are public (never blurred).
  */
 export default function FoundPersonCard({ f }) {
   const { t, lang } = useLanguage();
+  const navigate = useNavigate();
+
+  const caseId =
+    f.caseId ||
+    (f.id && !String(f.id).match(/^[0-9a-fA-F]{24}$/)
+      ? f.id
+      : `FP-2026-${String(f.id || f._id).slice(-4).toUpperCase()}`);
+
+  const name = foundDisplayName(f, t);
+  const open = () => navigate(`/person-found/${f.id}`);
 
   return (
-    <Link
-      to={`/person-found/${f.id}`}
-      className="found-card"
-      style={{ display: "block" }}
-    >
+    <div className="case-card found-card-v2" onClick={open}>
       <div className="photo">
-        <img src={f.photo} alt="Unidentified person" />
+        {f.photo ? (
+          <img src={f.photo} alt={name} />
+        ) : (
+          <div className="found-card-v2__nophoto">👤</div>
+        )}
+        <span className="stampwrap">
+          <span className={`badge ${f.longLost ? "badge-investigating" : "badge-tip"}`}>
+            {f.longLost ? t("found.longLost") : t("found.recentlyFound")}
+          </span>
+        </span>
       </div>
 
       <div className="body">
-        <span
-          className={`badge ${
-            f.longLost ? "badge-investigating" : "badge-tip"
-          }`}
-          style={{
-            marginBottom: 8,
-            display: "inline-block",
-          }}
-        >
-          {f.longLost
-            ? t("found.longLost")
-            : t("found.recentlyFound")}
+        <h4>{name}</h4>
+
+        <div className="meta">
+          <span>
+            {lang === "ur" ? "عمر" : "Age"}: {f.currentAge ?? "—"}
+            {f.ageWhenLost != null && f.ageWhenLost !== "" ? ` (${lang === "ur" ? "لاپتہ ہوتے وقت" : "when lost"} ${f.ageWhenLost})` : ""}
+            {" · "}
+            {genderLabel(f.gender, t)}
+          </span>
+          <span>
+            {t("found.foundLocation")}: {f.foundLocation || "—"}
+          </span>
+        </div>
+
+        <span className="found-card-v2__date">
+          {t("found.foundDate")}: {fmtDate(f.foundDate, lang)}
         </span>
 
-        <h4 style={{ fontSize: 16 }}>
-          {t("found.unidentified")}
-        </h4>
-
-        <p
-          style={{
-            fontSize: 13,
-            margin: "6px 0",
-          }}
-        >
-          {f.gender === "male"
-            ? t("common.male")
-            : t("common.female")}
-        </p>
-
-        {/* Age information */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            flexWrap: "wrap",
-            fontSize: 13,
-            margin: "4px 0 10px",
-          }}
-        >
-          <span>
-            <strong>{t("found.currentAge")}:</strong>{" "}
-            {f.currentAge ?? "—"}
-          </span>
-
-         
-
-          <span>
-            <strong>{t("found.ageWhenLost")}:</strong>{" "}
-            {f.ageWhenLost ?? "—"}
-          </span>
-        </div>
-
-        <p
-          style={{
-            fontSize: 12.5,
-            color: "var(--text-supporting)",
-            margin: "0 0 8px",
-          }}
-        >
-          {t("found.foundLocation")}: {f.foundLocation} ·{" "}
-          {fmtDate(f.foundDate, lang)}
-        </p>
-
-        <div
-          className="caseid"
-          style={{ marginTop: 8 }}
-        >
-          {f.caseId ||
-            (f.id &&
-            !String(f.id).match(/^[0-9a-fA-F]{24}$/)
-              ? f.id
-              : `FP-2026-${String(f.id)
-                  .slice(-4)
-                  .toUpperCase()}`)}
-        </div>
+        <div className="caseid">{caseId}</div>
       </div>
-    </Link>
+
+      <div className="actions">
+        <button
+          type="button"
+          className="btn btn-outline btn-sm btn-block"
+          onClick={(e) => {
+            e.stopPropagation();
+            open();
+          }}
+        >
+          {lang === "ur" ? "تفصیل دیکھیں" : "View details"}
+        </button>
+      </div>
+    </div>
   );
 }

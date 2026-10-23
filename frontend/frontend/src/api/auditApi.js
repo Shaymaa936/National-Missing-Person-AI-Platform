@@ -1,9 +1,9 @@
 // Talks to the Node backend's /api/audit endpoints for the admin
 // "Audit Log" panel (list logs, write a new entry, export as CSV).
 
-const API_BASE = import.meta.env.VITE_API_URL ;
+import { API_BASE } from "./apiClient";
 if (!API_BASE && import.meta.env.DEV) {
-  console.error("VITE_API_URL is not defined! Check your .env file.");
+  /* fallback address is handled in apiClient.js */
 }
 
 function authHeaders(token) {
@@ -69,12 +69,24 @@ export async function deleteAuditLogApi(token, id) {
   return data;
 }
 
+// Admin: delete every audit entry (backend keeps one "AUDIT_CLEARED" entry)
+export async function clearAuditLogsApi(token) {
+  const res = await fetch(`${API_BASE}/api/audit`, {
+    method: "DELETE",
+    headers: authHeaders(token),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.message || "Failed to clear audit log");
+  return data;
+}
+
 // Maps a Mongo AuditLog document into the flat shape the AdminDashboard
 // "audit" section (and the dashboard's Activity panel) already renders.
 export function toAuditShape(a) {
   return {
     id: a._id,
     actor: a.actor || "Admin User",
+    role: a.actorRole || "",
     action: a.action,
     detail: a.detail,
     kind: a.kind || "info",

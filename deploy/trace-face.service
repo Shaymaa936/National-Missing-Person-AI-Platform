@@ -1,0 +1,22 @@
+# systemd service for the Python face engine.
+# Copy to /etc/systemd/system/trace-face.service, then:
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now trace-face
+[Unit]
+Description=Trace AI face engine (FastAPI + DeepFace)
+After=network.target
+
+[Service]
+User=trace
+WorkingDirectory=/home/trace/trace/face_dtc/face_dtc
+EnvironmentFile=/etc/trace/face.env
+# ONE worker only: the engine stores faces in a JSON file, which is not
+# safe to share between several processes.
+ExecStart=/home/trace/trace/face_dtc/face_dtc/venv/bin/uvicorn app:app --host 127.0.0.1 --port 8000 --workers 1
+Restart=always
+RestartSec=5
+# TensorFlow can take a while to load on first start
+TimeoutStartSec=180
+
+[Install]
+WantedBy=multi-user.target

@@ -3,6 +3,7 @@ import { Link, Navigate, useParams } from "react-router-dom";
 import { useLanguage } from "../i18n/LanguageContext";
 import { fmtDate } from "../data/mockData";
 import { useData } from "../context/DataContext";
+import { foundDisplayName, genderLabel } from "../utils/personDisplay";
 
 export default function PersonFoundDetail() {
   const { id } = useParams();
@@ -43,12 +44,12 @@ export default function PersonFoundDetail() {
           <Link to="/person-found" className="btn btn-outline btn-block" style={{ marginTop: 14 }}>← {t("found.back")}</Link>
         </div>
         <div>
-          <h1>{t("found.unidentified")}</h1>
+          <h1>{foundDisplayName(f, t)}</h1>
           <table className="info-table">
             <tbody>
-              <tr><td>{t("found.currentAge")}</td><td>{f.currentAge}</td></tr>
+              <tr><td>{t("found.currentAge")}</td><td>{f.currentAge ?? "—"}</td></tr>
               {f.ageWhenLost && <tr><td>{t("found.ageWhenLost")}</td><td>{f.ageWhenLost}</td></tr>}
-              <tr><td>{t("detail.gender")}</td><td>{f.gender === "male" ? t("common.male") : t("common.female")}</td></tr>
+              <tr><td>{t("detail.gender")}</td><td>{genderLabel(f.gender, t)}</td></tr>
               <tr><td>{t("found.foundLocation")}</td><td>{f.foundLocation}</td></tr>
               <tr><td>{t("found.foundDate")}</td><td>{fmtDate(f.foundDate, lang)}</td></tr>
               <tr><td>{t("found.shelterLocation")}</td><td>{f.shelterLocation}</td></tr>
